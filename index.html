@@ -2,21 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Self-Destructive Ray</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ray Puzzle Game - Base</title>
     <style>
         :root {
-            --bg-color: #0b0b12;
+            --bg-color: #0c0f12;
             --text-color: #00ffcc;
-            --panel-bg: #161622;
-            --grid-line: rgba(0, 255, 204, 0.15);
-        }
-
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
+            --panel-bg: #161b22;
         }
 
         body {
@@ -24,628 +16,354 @@
             color: var(--text-color);
             font-family: 'Courier New', Courier, monospace;
             margin: 0;
-            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-            transition: all 0.3s ease;
+            overflow: hidden;
+            user-select: none;
         }
 
-        h1 {
-            margin: 5px 0;
-            font-size: 22px;
-            text-shadow: 0 0 10px var(--text-color);
-            text-align: center;
-        }
+        h1 { margin: 15px 0 5px; font-size: 24px; text-shadow: 0 0 10px var(--text-color); }
 
-        .game-layout {
+        .container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-            max-width: 400px;
+            gap: 20px;
+            margin-top: 10px;
         }
 
         #game-wrapper {
             position: relative;
             background-color: #000;
-            border: 3px solid var(--text-color);
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
-            overflow: visible;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
         }
 
-        canvas {
-            display: block;
-            background: #000;
-            transition: transform 0.2s ease;
-        }
+        canvas { display: block; }
 
         .sidebar {
-            width: 100%;
+            width: 260px;
             background: var(--panel-bg);
-            border: 1px solid rgba(0, 255, 204, 0.3);
-            padding: 12px;
+            border: 1px solid #333;
+            padding: 15px;
             font-size: 14px;
-            border-radius: 6px;
-            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-
-        .status-box {
-            margin-top: 8px;
-            max-height: 100px;
-            overflow-y: auto;
-            font-size: 11px;
+        
+        .rule-box {
+            background: rgba(0, 255, 204, 0.05);
+            border-left: 4px solid var(--text-color);
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 13px;
             line-height: 1.4;
         }
 
-        .danger-text {
-            color: #ff3366;
-            font-weight: bold;
-            animation: blink 0.5s infinite alternate;
-        }
+        .controls { color: #aaa; font-size: 12px; margin-top: 15px; line-height: 1.5; }
 
-        @keyframes blink {
-            0% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        
-        .instruction {
-            background: rgba(0, 255, 204, 0.08);
-            border-left: 3px solid var(--text-color);
-            padding: 6px 10px;
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
-
-        button {
-            background: var(--text-color);
+        .btn {
+            background: #00ffcc;
             color: #000;
             border: none;
-            padding: 10px 16px;
+            padding: 12px;
             font-weight: bold;
             cursor: pointer;
             width: 100%;
-            font-family: inherit;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 14px;
-            border-radius: 4px;
-            box-shadow: 0 4px 0px rgba(0,0,0,0.3);
         }
-        button:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0px rgba(0,0,0,0.3);
-        }
+        .btn:hover { background: #fff; }
 
         .overlay {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85);
             display: none;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            color: #fff;
+            color: white;
             z-index: 10;
-            padding: 20px;
-            text-align: center;
         }
+        #gameover { background: rgba(255, 0, 0, 0.4); }
+        #gameclear { background: rgba(0, 255, 204, 0.4); }
 
-        .overlay h2 { margin: 0 0 10px 0; font-size: 28px; }
-        .overlay p { margin: 0 0 20px 0; font-size: 14px; color: #ccc; }
-        .overlay button { width: 80%; }
-
-        #clear-overlay { background: rgba(0, 30, 20, 0.9); border: 2px solid #00ff66; }
-        #clear-overlay h2 { color: #00ff66; text-shadow: 0 0 10px #00ff66; }
+        .overlay h2 { font-size: 36px; margin: 0 0 10px; text-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .overlay p { margin: 0 0 20px; }
+        .overlay button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #fff;
+            border: none;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+        }
     </style>
 </head>
 <body>
 
-    <h1 id="game-title">Self-Destructive Ray</h1>
+    <h1>Ray Puzzle Game</h1>
 
-    <div class="game-layout">
+    <div class="container">
         <div id="game-wrapper">
-            <!-- 10x10の盤面 + 外周1マスずつ = 12x12マス分。1マス32pxで計384px（スマホ幅に最適） -->
-            <canvas id="gameCanvas" width="384" height="384"></canvas>
+            <canvas id="gameCanvas" width="540" height="540"></canvas>
             
-            <!-- ゲームオーバー画面 -->
-            <div id="gameover-overlay" class="overlay">
-                <h2 style="color: #ff3366; text-shadow: 0 0 10px #ff3366;">SYSTEM CRASH</h2>
-                <p id="fail-reason">光が壁に衝突しました</p>
-                <button id="btn-restart">REBOOT SYSTEM</button>
+            <div id="gameover" class="overlay">
+                <h2>GAME OVER</h2>
+                <p>光が壁に衝突しました</p>
+                <button class="btn-restart">RETRY</button>
             </div>
 
-            <!-- ステージクリア画面 -->
-            <div id="clear-overlay" class="overlay">
-                <h2>STAGE CLEAR</h2>
-                <p>緑のゲートへ光の調律を完了しました</p>
-                <button id="btn-next">クリア、次のステージに進む</button>
+            <div id="gameclear" class="overlay">
+                <h2 style="color: #00ffcc;">STAGE CLEAR</h2>
+                <p>見事に光をゴールへ導きました！</p>
+                <button class="btn-restart">PLAY AGAIN</button>
             </div>
         </div>
 
-        <div class="sidebar" id="main-sidebar">
-            <div class="instruction">
-                【生存兼調律プロトコル】<br>
-                マスをタップして鏡を配置（なし→／→＼）<br>
-                光を周囲の壁に当てず、<b>緑色のゴール</b>へ導け。<br>
-                鏡が割れると、世界のあらゆる数値が崩壊する。
+        <div class="sidebar">
+            <div>
+                <div class="rule-box">
+                    【ミッション】<br>
+                    左上の<b>[START]</b>から放たれる光を、壁にぶつけずに右下の<b>[GOAL]</b>まで運んでください。
+                </div>
+                
+                <div class="controls">
+                    <b>[操作方法]</b><br>
+                    ・<b>左クリック</b>: 鏡 [ ／ ] を配置<br>
+                    ・<b>右クリック</b>: 鏡 [ ＼ ] を配置<br>
+                    ・同じマスをもう一度クリックで消去
+                </div>
             </div>
             
-            <div style="display:flex; justify-content:space-between; font-weight:bold;">
-                <div>STAGE: <span id="ui-stage" style="color:#fff;">1</span></div>
-                <div>SCORE: <span id="ui-score" style="color:#fff;">0</span></div>
-            </div>
-            
-            <hr style="border-color:rgba(0,255,204,0.2); margin:8px 0;">
-            
-            <div><b>[SYSTEM VARIABLES]</b></div>
-            <div class="status-box" id="ui-status"></div>
-            
-            <button id="btn-start" style="margin-top: 10px;">BOOT SYSTEM</button>
+            <button id="btn-start" class="btn">LAUNCH RAY</button>
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const wrapper = document.getElementById('game-wrapper');
-        const uiStage = document.getElementById('ui-stage');
-        const uiScore = document.getElementById('ui-score');
-        const uiStatus = document.getElementById('ui-status');
         const btnStart = document.getElementById('btn-start');
-        const btnRestart = document.getElementById('btn-restart');
-        const btnNext = document.getElementById('btn-next');
-        const gameoverOverlay = document.getElementById('gameover-overlay');
-        const clearOverlay = document.getElementById('clear-overlay');
+        const gameoverScreen = document.getElementById('gameover');
+        const gameclearScreen = document.getElementById('gameclear');
+        const restartButtons = document.querySelectorAll('.btn-restart');
 
-        // 10x10マス（インデックス1〜10が内部盤面。0と11は外周エッジ）
-        const GRID_SIZE = 10;
-        const CELL_COUNT = GRID_SIZE + 2; 
-        const CELL_PX = 32;
+        // グリッド定数
+        const COLS = 15;
+        const ROWS = 15;
+        const SIZE = 36; // 15 * 36 = 540
+        
+        // 固定パラメーター
+        const RAY_SPEED = 3.0; // 光の移動速度
+        const RAY_WIDTH = 4;   // 光の太さ
 
-        // すべてを破壊するための狂乱のパラメータ定義
-        const paramDefs = [
-            { id: 'speed', name: 'RAY_VELOCITY', init: 3.0, min: 1.5, max: 12.0, step: 1.5, type: 'game' },
-            { id: 'fontSize', name: 'UI_FONT_SIZE', init: 14, min: 6, max: 42, step: 4, type: 'dom' },
-            { id: 'bgColor', name: 'SYS_BG_HEX', init: '#0b0b12', alt: '#ffffff', type: 'color' },
-            { id: 'textColor', name: 'SYS_TXT_HEX', init: '#00ffcc', alt: '#ff0055', type: 'color' },
-            { id: 'rotate', name: 'CORE_ROTATION', init: 0, min: -45, max: 45, step: 15, type: 'dom' },
-            { id: 'shake', name: 'CAM_VIBRATION', init: 0, min: 0, max: 30, step: 6, type: 'game' },
-            { id: 'lineWidth', name: 'RAY_THICKNESS', init: 3, min: 0.5, max: 25, step: 4, type: 'game' },
-            { id: 'gridGlitch', name: 'GRID_DISPLACE', init: 0, min: 0, max: 20, step: 4, type: 'game' },
-            { id: 'sidebarAlpha', name: 'UI_VISIBILITY', init: 1.0, min: 0.0, max: 1.0, step: -0.25, type: 'dom' },
-            { id: 'canvasScale', name: 'VIEW_ZOOM', init: 1.0, min: 0.5, max: 1.8, step: 0.2, type: 'dom' }
-        ];
-
-        let config = {};
         let grid = [];
-        let rays = [];
-        let goalEdge = { side: 'right', idx: 5 }; // 初期ゴール
+        let ray = null;
         let isPlaying = false;
-        let score = 0;
-        let stage = 1;
-        let audioCtx = null;
         let lastTime = 0;
-        let activeTuningCell = null; // 世界で「たったひとつ」の明滅調律マス座標
 
-        function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        // 右クリックメニューの禁止
+        document.addEventListener('contextmenu', e => e.preventDefault());
 
-        function playSound(type) {
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            if (type === 'reflect') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(600 + (Math.random() * 400), audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
-            } else if (type === 'clear') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-            } else if (type === 'fail') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.4);
-                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-            }
-        }
-
-        // 盤面生成：10x10の内部マスに変異データを仕込む
-        function generateGrid() {
+        // グリッドの初期化（すべて空っぽにする）
+        function initGrid() {
             grid = [];
-            let pool = [];
-            // 各パラメータの「狂わせる効果」と「戻す効果」を均等に用意
-            for (let i = 0; i < (GRID_SIZE * GRID_SIZE); i++) {
-                let p = paramDefs[Math.floor(Math.random() * paramDefs.length)];
-                if (p.type === 'color') {
-                    pool.push({ id: p.id, dir: Math.random() > 0.5 ? 'break' : 'fix' });
-                } else {
-                    pool.push({ id: p.id, dir: Math.random() > 0.5 ? 1 : -1 });
-                }
-            }
-            pool.sort(() => Math.random() - 0.5);
-
-            for (let r = 0; r < CELL_COUNT; r++) {
+            for (let r = 0; r < ROWS; r++) {
                 let row = [];
-                for (let c = 0; c < CELL_COUNT; c++) {
-                    let mutation = null;
-                    // 内部の10x10マスにのみ変異属性を与える
-                    if (r > 0 && r <= GRID_SIZE && c > 0 && c <= GRID_SIZE) {
-                        mutation = pool.pop();
-                    }
-                    row.push({ mirror: 0, mutation: mutation });
+                for (let c = 0; c < COLS; c++) {
+                    row.push({ mirror: 0 }); // 0:なし, 1:'/', 2:'\'
                 }
                 grid.push(row);
             }
         }
 
-        function resetConfig() {
-            config = {};
-            paramDefs.forEach(p => {
-                config[p.id] = p.init;
-            });
-            activeTuningCell = null;
-            applyDOMDestruction();
-        }
-
-        // 鏡が粉砕した時の自己破壊ロジック
-        function applyMutation(mut) {
-            const p = paramDefs.find(def => def.id === mut.id);
-            if (p.type === 'color') {
-                config[p.id] = (mut.dir === 'break') ? p.alt : p.init;
-            } else {
-                config[p.id] = Math.max(p.min, Math.min(p.max, config[p.id] + (p.step * mut.dir)));
-            }
-
-            applyDOMDestruction();
-            selectSingleTuningCell(); // 調律マスを「世界でひとつだけ」再選定
-        }
-
-        // ゲームの枠線を超えてWEBページ全体を物理的に破壊する処理
-        function applyDOMDestruction() {
-            // 1. 文字サイズ破壊
-            document.body.style.fontSize = `${config.fontSize}px`;
-            document.getElementById('game-title').style.fontSize = `${config.fontSize * 1.5}px`;
-            
-            // 2. 背景・文字色破壊
-            document.documentElement.style.setProperty('--bg-color', config.bgColor);
-            document.documentElement.style.setProperty('--text-color', config.textColor);
-            
-            // 3. 画面の回転破壊
-            canvas.style.transform = `rotate(${config.rotate}deg) scale(${config.canvasScale})`;
-            
-            // 4. UIの透明化・消失破壊
-            document.getElementById('main-sidebar').style.opacity = config.sidebarAlpha;
-            if(config.sidebarAlpha <= 0.2) {
-                document.getElementById('main-sidebar').style.filter = 'blur(4px)';
-            } else {
-                document.getElementById('main-sidebar').style.filter = 'none';
-            }
-
-            // ステータステキストの更新
-            uiStatus.innerHTML = '';
-            paramDefs.forEach(p => {
-                let cur = config[p.id];
-                let isAltered = cur !== p.init;
-                let showVal = (typeof cur === 'number') ? cur.toFixed(1) : cur;
-                if (isAltered) {
-                    uiStatus.innerHTML += `<div class="danger-text">${p.name}: ${showVal} [ERR]</div>`;
-                } else {
-                    uiStatus.innerHTML += `<div>${p.name}: ${showVal}</div>`;
-                }
-            });
-        }
-
-        // 現在狂っている要素を元に戻せるマスを「たったひとつだけ」見つけて指定する
-        function selectSingleTuningCell() {
-            activeTuningCell = null;
-            let messedParams = paramDefs.filter(p => config[p.id] !== p.init);
-            if (messedParams.length === 0) return;
-
-            // 狂っているパラメータの中からランダムに1つ対象を選ぶ
-            let targetParam = messedParams[Math.floor(Math.random() * messedParams.length)];
-            
-            // それを「元に戻す」方向のキーを特定
-            let targetDir;
-            if (targetParam.type === 'color') {
-                targetDir = 'fix';
-            } else {
-                targetDir = config[targetParam.id] > targetParam.init ? -1 : 1;
-            }
-
-            // 盤面全体からその能力を持つマスを探す（最初に見つかった場所に決定）
-            let candidates = [];
-            for (let r = 1; r <= GRID_SIZE; r++) {
-                for (let c = 1; c <= GRID_SIZE; c++) {
-                    let cell = grid[r][c];
-                    if (cell.mutation && cell.mutation.id === targetParam.id && cell.mutation.dir === targetDir) {
-                        candidates.push({r, c});
-                    }
-                }
-            }
-
-            if (candidates.length > 0) {
-                activeTuningCell = candidates[Math.floor(Math.random() * candidates.length)];
-            }
-        }
-
-        function spawnRays() {
-            rays = [];
-            // ステージ数に応じて初期光線数が微増
-            let rayCount = Math.min(3, 1 + Math.floor((stage - 1) / 2));
-            for(let i=0; i<rayCount; i++) {
-                // 左端のランダムな高さから右向きに発射
-                let startR = 2 + Math.floor(Math.random() * (GRID_SIZE - 3));
-                let startY = startR * CELL_PX + CELL_PX / 2;
-                rays.push({
-                    x: CELL_PX + 2, 
-                    y: startY, 
-                    dx: 1, 
-                    dy: 0, 
-                    history: []
-                });
-            }
-        }
-
-        function randomizeGoal() {
-            // ゴールを右辺か下辺のどこかにランダム配置
-            const sides = ['right', 'bottom'];
-            let side = sides[Math.floor(Math.random() * sides.length)];
-            let idx = 2 + Math.floor(Math.random() * (GRID_SIZE - 2)); // 端すぎない位置
-            goalEdge = { side, idx };
-        }
-
-        function startNewGame(fullReset) {
-            initAudio();
-            if (fullReset) {
-                stage = 1;
-                score = 0;
-            }
-            uiStage.innerText = stage;
-            uiScore.innerText = score;
-
-            generateGrid();
-            resetConfig();
-            randomizeGoal();
-            spawnRays();
-
+        // ゲーム開始
+        function startGame() {
+            initGrid();
+            // 光の初期化 (左上マスの中心から、右向きにスタート)
+            ray = {
+                x: SIZE / 2,
+                y: SIZE / 2,
+                dx: 1,
+                dy: 0,
+                history: []
+            };
             isPlaying = true;
             btnStart.style.display = 'none';
-            gameoverOverlay.style.display = 'none';
-            clearOverlay.style.display = 'none';
+            gameoverScreen.style.display = 'none';
+            gameclearScreen.style.display = 'none';
             
             lastTime = performance.now();
             requestAnimationFrame(gameLoop);
         }
 
-        function handleStageClear() {
+        function gameOver() {
             isPlaying = false;
-            playSound('clear');
-            clearOverlay.style.display = 'flex';
+            gameoverScreen.style.display = 'flex';
+            btnStart.style.display = 'block';
         }
 
-        function handleGameOver(reason) {
+        function gameClear() {
             isPlaying = false;
-            playSound('fail');
-            document.getElementById('fail-reason').innerText = reason;
-            gameoverOverlay.style.display = 'flex';
+            gameclearScreen.style.display = 'flex';
+            btnStart.style.display = 'block';
         }
 
-        // タップ操作判定（前作準拠：なし → ／ → ＼ → なし のトグル切り替え）
-        canvas.addEventListener('click', (e) => {
-            if (!isPlaying) return;
-            
+        // マウスクリック処理（鏡の配置）
+        canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            // 破壊パラメータによるキャンバスの拡大縮小・回転のズレを簡易補正して座標計算
-            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            const c = Math.floor(x / CELL_PX);
-            const r = Math.floor(y / CELL_PX);
+            const c = Math.floor(x / SIZE);
+            const r = Math.floor(y / SIZE);
 
-            // 内部の10x10マスの範囲内のみ切り替え許可
-            if (r > 0 && r <= GRID_SIZE && c > 0 && c <= GRID_SIZE) {
-                grid[r][c].mirror = (grid[r][c].mirror + 1) % 3;
-                playSound('reflect');
+            // スタートマス(0,0)とゴールマス(14,14)には鏡を置けないようにする
+            if ((r === 0 && c === 0) || (r === ROWS - 1 && c === COLS - 1)) return;
+
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+                let cell = grid[r][c];
+                if (e.button === 0) { // 左クリック '/'
+                    cell.mirror = cell.mirror === 1 ? 0 : 1;
+                } else if (e.button === 2) { // 右クリック '\'
+                    cell.mirror = cell.mirror === 2 ? 0 : 2;
+                }
+                // ゲーム開始前でも鏡の配置が見えるように描画を更新
+                if (!isPlaying) draw();
             }
         });
 
         function gameLoop(currentTime) {
             if (!isPlaying) return;
-            const deltaTime = Math.min(0.1, (currentTime - lastTime) / 1000); // フリーズ対策
+            const deltaTime = (currentTime - lastTime) / 1000;
             lastTime = currentTime;
 
-            update(deltaTime);
+            update();
             draw();
 
             requestAnimationFrame(gameLoop);
         }
 
-        function update(dt) {
-            // 画面の激しい揺れ（自己破壊パラメータ）
-            if (config.shake > 0) {
-                const sx = (Math.random() - 0.5) * config.shake;
-                const sy = (Math.random() - 0.5) * config.shake;
-                wrapper.style.transform = `translate(${sx}px, ${sy}px)`;
-            } else {
-                wrapper.style.transform = 'translate(0,0)';
-            }
+        function update() {
+            let nextX = ray.x + ray.dx * RAY_SPEED;
+            let nextY = ray.y + ray.dy * RAY_SPEED;
 
-            for (let i = rays.length - 1; i >= 0; i--) {
-                let ray = rays[i];
-                let nextX = ray.x + ray.dx * config.speed;
-                let nextY = ray.y + ray.dy * config.speed;
+            // 現在光がいるマスの中心座標
+            let cx = Math.floor(ray.x / SIZE) * SIZE + SIZE / 2;
+            let cy = Math.floor(ray.y / SIZE) * SIZE + SIZE / 2;
 
-                let cx = Math.floor(ray.x / CELL_PX) * CELL_PX + CELL_PX / 2;
-                let cy = Math.floor(ray.y / CELL_PX) * CELL_PX + CELL_PX / 2;
+            // マスの中心をまたいだ瞬間の判定
+            let crossed = false;
+            if (ray.dx > 0 && ray.x <= cx && nextX >= cx) crossed = true;
+            else if (ray.dx < 0 && ray.x >= cx && nextX <= cx) crossed = true;
+            else if (ray.dy > 0 && ray.y <= cy && nextY >= cy) crossed = true;
+            else if (ray.dy < 0 && ray.y >= cy && nextY <= cy) crossed = true;
 
-                // マスの中心点を通過したかどうかのクロス判定
-                let crossed = false;
-                if (ray.dx > 0 && ray.x <= cx && nextX >= cx) crossed = true;
-                else if (ray.dx < 0 && ray.x >= cx && nextX <= cx) crossed = true;
-                else if (ray.dy > 0 && ray.y <= cy && nextY >= cy) crossed = true;
-                else if (ray.dy < 0 && ray.y >= cy && nextY <= cy) crossed = true;
+            if (crossed) {
+                ray.x = cx; ray.y = cy; // 中心にスナップ
+                let r = Math.floor(cy / SIZE);
+                let c = Math.floor(cx / SIZE);
 
-                if (crossed) {
-                    ray.x = cx; ray.y = cy;
-                    let r = Math.floor(cy / CELL_PX);
-                    let c = Math.floor(cx / CELL_PX);
+                // ゴール判定 (右下のマスに到達したらクリア)
+                if (r === ROWS - 1 && c === COLS - 1) {
+                    gameClear();
+                    return;
+                }
 
-                    // 外周エッジ（0 または 11）に到達したかの判定
-                    if (r === 0 || r === CELL_COUNT - 1 || c === 0 || c === CELL_COUNT - 1) {
-                        // ゴール判定
-                        let hitGoal = false;
-                        if (goalEdge.side === 'top' && r === 0 && goalEdge.idx === c) hitGoal = true;
-                        if (goalEdge.side === 'bottom' && r === CELL_COUNT - 1 && goalEdge.idx === c) hitGoal = true;
-                        if (goalEdge.side === 'left' && c === 0 && goalEdge.idx === r) hitGoal = true;
-                        if (goalEdge.side === 'right' && c === CELL_COUNT - 1 && goalEdge.idx === r) hitGoal = true;
-
-                        if (hitGoal) {
-                            handleStageClear();
-                            return;
-                        } else {
-                            handleGameOver(`光がデッドエンドの壁 [${r}, ${c}] に激突しました`);
-                            return;
-                        }
-                    }
-
-                    // 鏡との反射処理
+                if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
                     let cell = grid[r][c];
-                    if (cell && cell.mirror !== 0) {
+                    if (cell.mirror !== 0) {
                         let oldDx = ray.dx;
                         if (cell.mirror === 1) { // '/'
                             ray.dx = -ray.dy; ray.dy = -oldDx;
                         } else if (cell.mirror === 2) { // '\'
                             ray.dx = ray.dy; ray.dy = oldDx;
                         }
-                        
-                        // プログラムデータの破壊実行
-                        applyMutation(cell.mutation);
-                        cell.mirror = 0; // 反射した瞬間にパリンと砕け散る
-                        score += 10;
-                        uiScore.innerText = score;
-                        playSound('reflect');
+                        // 鏡は割れずにそのまま残る (cell.mirror = 0 は削除)
                     }
-
-                    // スナップ後の残移動分を進める
-                    let remainder = Math.abs((ray.dx !== 0) ? (nextX - cx) : (nextY - cy));
-                    ray.x += ray.dx * remainder;
-                    ray.y += ray.dy * remainder;
-                } else {
-                    ray.x = nextX;
-                    ray.y = nextY;
                 }
+                
+                // 方向転換後の残りの移動量を適用
+                let dist = Math.abs((ray.dx !== 0) ? (nextX - cx) : (nextY - cy));
+                ray.x += ray.dx * dist;
+                ray.y += ray.dy * dist;
+            } else {
+                ray.x = nextX;
+                ray.y = nextY;
+            }
 
-                // 軌跡ログの保存
-                ray.history.push({ x: ray.x, y: ray.y });
-                if (ray.history.length > 15) ray.history.shift();
+            // 軌跡の記録（残像用）
+            ray.history.push({ x: ray.x, y: ray.y });
+            if (ray.history.length > 25) ray.history.shift();
+
+            // 衝突判定（外枠の壁に出たらアウト）
+            if (ray.x < 0 || ray.x > canvas.width || ray.y < 0 || ray.y > canvas.height) {
+                gameOver();
             }
         }
 
         function draw() {
-            // フェードによる光の残像エフェクト
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            // 背景クリア
+            ctx.fillStyle = '#000000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 1. グリッドとマスの状態描画
-            for (let r = 0; r < CELL_COUNT; r++) {
-                for (let c = 0; c < CELL_COUNT; c++) {
-                    let cx = c * CELL_PX;
-                    let cy = r * CELL_PX;
-
-                    // 画面グリッチパラメータによる座標のブレ表現
-                    let gx = cx + (Math.random() - 0.5) * config.gridGlitch;
-                    let gy = cy + (Math.random() - 0.5) * config.gridGlitch;
-
-                    // 外周壁の描画
-                    if (r === 0 || r === CELL_COUNT - 1 || c === 0 || c === CELL_COUNT - 1) {
-                        // ゴールかどうかの判定
-                        let isGoal = false;
-                        if (goalEdge.side === 'top' && r === 0 && goalEdge.idx === c) isGoal = true;
-                        if (goalEdge.side === 'bottom' && r === CELL_COUNT - 1 && goalEdge.idx === c) isGoal = true;
-                        if (goalEdge.side === 'left' && c === 0 && goalEdge.idx === r) isGoal = true;
-                        if (goalEdge.side === 'right' && c === CELL_COUNT - 1 && goalEdge.idx === r) isGoal = true;
-
-                        if (isGoal) {
-                            // ゴールマスはネオンライムに輝く
-                            ctx.fillStyle = '#00ff66';
-                            ctx.fillRect(gx, gy, CELL_PX, CELL_PX);
-                            ctx.shadowBlur = 15;
-                            ctx.shadowColor = '#00ff66';
-                            ctx.strokeStyle = '#fff';
-                            ctx.strokeRect(gx + 2, gy + 2, CELL_PX - 4, CELL_PX - 4);
-                            ctx.shadowBlur = 0;
-                        } else {
-                            // 通常の侵入不可の壁
-                            ctx.fillStyle = '#11111a';
-                            ctx.fillRect(gx, gy, CELL_PX, CELL_PX);
-                            ctx.strokeStyle = '#222233';
-                            ctx.strokeRect(gx, gy, CELL_PX, CELL_PX);
-                        }
-                        continue;
-                    }
-
-                    // 内部盤面のグリッド線
-                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.12)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(gx, gy, CELL_PX, CELL_PX);
-
-                    // 【世界でたったひとつのみ明滅】する調律マスの描画
-                    if (activeTuningCell && activeTuningCell.r === r && activeTuningCell.c === c) {
-                        let alpha = 0.15 + Math.abs(Math.sin(performance.now() / 100)) * 0.4;
-                        ctx.fillStyle = `rgba(255, 40, 80, ${alpha})`;
-                        ctx.fillRect(gx, gy, CELL_PX, CELL_PX);
-                        ctx.strokeStyle = '#ff3366';
-                        ctx.strokeRect(gx + 1, gy + 1, CELL_PX - 2, CELL_PX - 2);
-                    }
-
-                    // 鏡のグラフィック描画
+            // グリッドとマスの描画
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    let cx = c * SIZE;
+                    let cy = r * SIZE;
                     let cell = grid[r][c];
+
+                    // 特殊マスの色分け
+                    if (r === 0 && c === 0) {
+                        // スタートマス (緑)
+                        ctx.fillStyle = 'rgba(0, 255, 100, 0.15)';
+                        ctx.fillRect(cx, cy, SIZE, SIZE);
+                    } else if (r === ROWS - 1 && c === COLS - 1) {
+                        // ゴールマス (オレンジ)
+                        ctx.fillStyle = 'rgba(255, 150, 0, 0.2)';
+                        ctx.fillRect(cx, cy, SIZE, SIZE);
+                    }
+
+                    // グリッド線の描画
+                    ctx.strokeStyle = 'rgba(0, 255, 204, 0.08)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(cx, cy, SIZE, SIZE);
+
+                    // 鏡の描画
                     if (cell.mirror !== 0) {
                         ctx.strokeStyle = '#ffffff';
                         ctx.lineWidth = 3;
-                        ctx.lineCap = 'round';
-                        ctx.shadowBlur = 8;
-                        ctx.shadowColor = '#ffffff';
-                        
                         ctx.beginPath();
                         if (cell.mirror === 1) { // '/'
-                            ctx.moveTo(gx + 4, gy + CELL_PX - 4);
-                            ctx.lineTo(gx + CELL_PX - 4, gy + 4);
-                        } else if (cell.mirror === 2) { // '\'
-                            ctx.moveTo(gx + 4, gy + 4);
-                            ctx.lineTo(gx + CELL_PX - 4, gy + CELL_PX - 4);
+                            ctx.moveTo(cx + 6, cy + SIZE - 6);
+                            ctx.lineTo(cx + SIZE - 6, cy + 6);
+                        } else { // '\'
+                            ctx.moveTo(cx + 6, cy + 6);
+                            ctx.lineTo(cx + SIZE - 6, cy + SIZE - 6);
                         }
                         ctx.stroke();
-                        ctx.shadowBlur = 0; // リセット
                     }
                 }
             }
 
-            // 2. 暴走する光線の描画
-            rays.forEach(ray => {
+            // スタート・ゴールのテキスト描画
+            ctx.font = 'bold 10px Courier New';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = '#00ffcc';
+            ctx.fillText('START', SIZE / 2, SIZE / 2);
+            ctx.fillStyle = '#ff9600';
+            ctx.fillText('GOAL', canvas.width - SIZE / 2, canvas.height - SIZE / 2);
+
+            // 光線の描画（ゲーム中のみ）
+            if (isPlaying && ray) {
                 ctx.beginPath();
-                ctx.strokeStyle = 'rgba(0, 255, 204, 1)';
-                ctx.lineWidth = config.lineWidth;
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = RAY_WIDTH;
                 ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                
-                // ネオン発光エフェクト
-                ctx.shadowBlur = 12;
-                ctx.shadowColor = 'rgba(0, 255, 204, 1)';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#00ffcc';
 
                 if (ray.history.length > 0) {
                     ctx.moveTo(ray.history[0].x, ray.history[0].y);
@@ -655,22 +373,16 @@
                     ctx.lineTo(ray.x, ray.y);
                 }
                 ctx.stroke();
-                ctx.shadowBlur = 0;
-            });
+                ctx.shadowBlur = 0; // シャドウのリセット
+            }
         }
 
-        // 各種ボタンのイベントハンドラ
-        btnStart.addEventListener('click', () => startNewGame(true));
-        btnRestart.addEventListener('click', () => startNewGame(true));
-        
-        btnNext.addEventListener('click', () => {
-            stage++;
-            startNewGame(false);
-        });
+        // イベントリスナーの登録
+        btnStart.addEventListener('click', startGame);
+        restartButtons.forEach(btn => btn.addEventListener('click', startGame));
 
-        // 最初の状態を仮描画
-        generateGrid();
-        resetConfig();
+        // 初回起動時の描画
+        initGrid();
         draw();
     </script>
 </body>
