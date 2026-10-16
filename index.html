@@ -56,6 +56,7 @@
             border: 1px solid var(--border);
             border-radius: 4px;
             font-size: 0.9rem;
+            max-width: 80px;
         }
 
         button {
@@ -80,10 +81,13 @@
             border-radius: 4px;
             background: white;
             overflow: hidden;
-            touch-action: none; /* スマホでキャンバスを触った際のスクロールを防止 */
+            touch-action: none;
         }
 
         canvas { display: block; width: 100%; height: auto; }
+        
+        /* 倍音編集用のカーソル */
+        #spectrumCanvas { cursor: crosshair; }
 
         .section-title {
             font-size: 0.95rem;
@@ -91,6 +95,15 @@
             font-weight: bold;
             border-bottom: 2px solid var(--border);
             padding-bottom: 4px;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+        }
+        
+        .hint {
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-weight: normal;
         }
     </style>
 </head>
@@ -137,10 +150,10 @@
         <button id="playBtn">▶ スタート</button>
         
         <label>速度:</label>
-        <input type="number" id="speedInput" value="0.2" min="0.05" max="2" step="0.05" style="width: 50px;"> 秒/倍音
+        <input type="number" id="speedInput" value="0.2" min="0.05" max="2" step="0.05"> 秒/本
 
         <label>上限:</label>
-        <input type="number" id="maxHarmonicsInput" value="50" min="5" max="200" style="width: 50px;">
+        <input type="number" id="maxHarmonicsInput" value="50" min="5" max="200">
 
         <label>
             <input type="checkbox" id="audioToggle"> 音を鳴らす
@@ -152,7 +165,10 @@
         <canvas id="synthCanvas" width="800" height="200"></canvas>
     </div>
 
-    <div class="section-title">倍音の強さ</div>
+    <div class="section-title">
+        <span>倍音の強さ</span>
+        <span class="hint">バーをなぞって直接編集できます👆</span>
+    </div>
     <div class="canvas-container">
         <canvas id="spectrumCanvas" width="800" height="120"></canvas>
     </div>
@@ -164,6 +180,7 @@ let targetData = new Float32Array(RESOLUTION);
 let a_n = [], b_n = [], magnitudes = [];
 let isPlaying = false, currentHarmonic = 0, maxHarmonics = 50, lastAddTime = 0, animationFrameId;
 let audioCtx = null, oscillator = null, masterGain = null;
+const UI_MAX_MAG = 1.5; // 倍音グラフの表示スケール上限値
 
 const presetSelect = document.getElementById('presetSelect');
 const drawMode = document.getElementById('drawMode');
@@ -271,24 +288,27 @@ function drawSynth(limit) {
 
 function drawSpectrum() {
     spCtx.clearRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-    const maxMag = Math.max(...magnitudes.slice(1));
-    const barWidth = Math.min(20, (spectrumCanvas.width - 40) / maxHarmonics);
+    const spacing = (spectrumCanvas.width - 40) / Math.max(1, maxHarmonics - 1);
+    const barWidth = Math.max(1, Math.min(20, spacing * 0.8));
+    
     for (let k = 1; k <= maxHarmonics; k++) {
-        const px = 20 + (k - 1) * (spectrumCanvas.width - 40) / maxHarmonics;
-        const h = maxMag > 0 ? (magnitudes[k] / maxMag) * (spectrumCanvas.height - 20) : 0;
-        spCtx.fillStyle = (k <= currentHarmonic && isPlaying) ? '#0d6efd' : '#e9ecef';
-        spCtx.fillRect(px, spectrumCanvas.height - h - 10, barWidth - 1, h);
+        const px = 20 + (k - 1) * spacing;
+        let h = (magnitudes[k] / UI_MAX_MAG) * (spectrumCanvas.height - 20);
+        h = Math.max(0, h); // マイナス防止
+        
+        spCtx.fillStyle = (k <= currentHarmonic && isPlaying) ? '#0d6efd' : '#adb5bd';
+        spCtx.fillRect(px - barWidth / 2, spectrumCanvas.height - h - 10, barWidth, h);
     }
 }
 
-// --- 手書きツール (マウス & スマホタッチ両対応) ---
+// --- 手書きツール ---
 let isDrawing = false, startDrawX = 0, startDrawY = 0;
 let tempTargetData = new Float32Array(RESOLUTION);
 
-function getPointerPos(e) {
-    const rect = targetCanvas.getBoundingClientRect();
-    const scaleX = targetCanvas.width / rect.width;
-    const scaleY = targetCanvas.height / rect.height;
+function getPointerPos(e, canvasElem) {
+    const rect = canvasElem.getBoundingClientRect();
+    const scaleX = canvasElem.width / rect.width;
+    const scaleY = canvasElem.height / rect.height;
     let clientX = e.clientX, clientY = e.clientY;
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
@@ -297,11 +317,13 @@ function getPointerPos(e) {
 }
 
 function startDrawing(e) {
-    if (presetSelect.value !== 'custom') return;
-    if (e.type === 'touchstart') e.preventDefault(); // スクロール防止
+    if (presetSelect.value !== 'custom') {
+        presetSelect.value = 'custom';
+        drawMode.disabled = false; clearBtn.disabled = false;
+    }
+    if (e.type === 'touchstart') e.preventDefault();
     isDrawing = true;
-    let pos = getPointerPos(e);
-    
+    let pos = getPointerPos(e, targetCanvas);
     const gridVal = parseInt(gridSelect.value);
     if (gridVal > 0) {
         pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
@@ -312,16 +334,14 @@ function startDrawing(e) {
 }
 
 function drawLine(e) {
-    if (!isDrawing || presetSelect.value !== 'custom') return;
-    if (e.type === 'touchmove') e.preventDefault(); // スクロール防止
-    let pos = getPointerPos(e);
-    
+    if (!isDrawing) return;
+    if (e.type === 'touchmove') e.preventDefault();
+    let pos = getPointerPos(e, targetCanvas);
     const gridVal = parseInt(gridSelect.value);
     if (gridVal > 0) {
         pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
         pos.y = Math.round(pos.y / (targetCanvas.height / gridVal)) * (targetCanvas.height / gridVal);
     }
-
     targetData.set(tempTargetData);
     const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
     const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((pos.x / targetCanvas.width) * RESOLUTION)));
@@ -348,16 +368,84 @@ function stopDrawing() {
     if (isDrawing) { isDrawing = false; updateFourier(); }
 }
 
-// イベントリスナー登録 (PC & スマホ)
 targetCanvas.addEventListener('mousedown', startDrawing);
 targetCanvas.addEventListener('mousemove', drawLine);
 targetCanvas.addEventListener('mouseup', stopDrawing);
 targetCanvas.addEventListener('mouseleave', stopDrawing);
-
 targetCanvas.addEventListener('touchstart', startDrawing, {passive: false});
 targetCanvas.addEventListener('touchmove', drawLine, {passive: false});
 targetCanvas.addEventListener('touchend', stopDrawing);
 targetCanvas.addEventListener('touchcancel', stopDrawing);
+
+
+// --- 倍音の直接操作ロジック ---
+let isEditingSpectrum = false;
+
+function updateTargetFromHarmonics() {
+    // 逆フーリエ変換でスペクトルから目的波形を再生成
+    for (let i = 0; i < RESOLUTION; i++) {
+        const x_val = (i / RESOLUTION) * 2 * Math.PI;
+        let y_val = a_n[0];
+        for (let k = 1; k <= maxHarmonics; k++) {
+            y_val += a_n[k] * Math.cos(k * x_val) + b_n[k] * Math.sin(k * x_val);
+        }
+        targetData[i] = y_val;
+    }
+}
+
+function editSpectrum(e) {
+    if (e.type === 'touchmove' || e.type === 'touchstart') e.preventDefault();
+    
+    // カスタムモードに切り替え
+    if (presetSelect.value !== 'custom') {
+        presetSelect.value = 'custom';
+        drawMode.disabled = false; clearBtn.disabled = false;
+    }
+
+    let pos = getPointerPos(e, spectrumCanvas);
+    const spacing = (spectrumCanvas.width - 40) / Math.max(1, maxHarmonics - 1);
+    
+    // X座標から倍音番号 k を特定
+    let k = Math.round((pos.x - 20) / spacing) + 1;
+    if (k < 1) k = 1;
+    if (k > maxHarmonics) k = maxHarmonics;
+
+    // Y座標から振幅（強さ）を計算
+    let h = spectrumCanvas.height - 10 - pos.y;
+    let val = (h / (spectrumCanvas.height - 20)) * UI_MAX_MAG;
+    val = Math.max(0, val);
+
+    const oldMag = magnitudes[k];
+    if (oldMag > 0.0001) {
+        // 元の位相（サインとコサインの比率）を保ったまま音量だけ変える
+        const ratio = val / oldMag;
+        a_n[k] *= ratio;
+        b_n[k] *= ratio;
+    } else {
+        // 0だった場合はサイン波として追加
+        a_n[k] = 0;
+        b_n[k] = val; 
+    }
+    magnitudes[k] = val;
+
+    updateTargetFromHarmonics();
+    drawTarget();
+    drawSpectrum();
+
+    if (isPlaying && currentHarmonic >= k) {
+        updateAudio(currentHarmonic);
+        drawSynth(currentHarmonic);
+    } else if (!isPlaying) {
+        drawSynth(0);
+    }
+}
+
+spectrumCanvas.addEventListener('mousedown', (e) => { isEditingSpectrum = true; editSpectrum(e); });
+spectrumCanvas.addEventListener('mousemove', (e) => { if(isEditingSpectrum) editSpectrum(e); });
+window.addEventListener('mouseup', () => { isEditingSpectrum = false; });
+spectrumCanvas.addEventListener('touchstart', (e) => { isEditingSpectrum = true; editSpectrum(e); }, {passive: false});
+spectrumCanvas.addEventListener('touchmove', (e) => { if(isEditingSpectrum) editSpectrum(e); }, {passive: false});
+window.addEventListener('touchend', () => { isEditingSpectrum = false; });
 
 
 // --- オーディオエンジン ---
@@ -428,7 +516,6 @@ audioToggle.addEventListener('change', () => {
     if (!audioToggle.checked) stopAudio(); else if (isPlaying) updateAudio(currentHarmonic);
 });
 
-// スマホ画面幅対応 (メタタグ追加とスタイル調整) 済み
 generatePreset('sine');
 </script>
 </body>
