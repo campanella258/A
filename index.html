@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>倍音合成シミュレーター (Fourier Synthesizer)</title>
     <style>
         :root {
@@ -11,10 +12,6 @@
             --text: #212529;
             --accent: #0d6efd;
             --accent-hover: #0b5ed7;
-            --target-wave: rgba(0, 0, 0, 0.15);
-            --synth-wave: #212529;
-            --bar-active: #0d6efd;
-            --bar-inactive: #e9ecef;
         }
 
         body {
@@ -22,7 +19,7 @@
             background-color: var(--surface);
             color: var(--text);
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -30,31 +27,32 @@
 
         .container {
             background-color: var(--bg);
-            padding: 24px;
+            padding: 16px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             max-width: 800px;
             width: 100%;
+            box-sizing: border-box;
         }
 
-        h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }
+        h1 { margin-top: 0; font-size: 1.2rem; text-align: center; }
 
         .control-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 8px;
             margin-bottom: 16px;
             align-items: center;
             background: var(--surface);
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--border);
         }
 
-        label { font-size: 0.9rem; font-weight: bold; }
+        label { font-size: 0.85rem; font-weight: bold; }
         
-        select, input[type="number"], input[type="range"] {
-            padding: 6px 8px;
+        select, input[type="number"] {
+            padding: 6px;
             border: 1px solid var(--border);
             border-radius: 4px;
             font-size: 0.9rem;
@@ -82,19 +80,18 @@
             border-radius: 4px;
             background: white;
             overflow: hidden;
+            touch-action: none; /* スマホでキャンバスを触った際のスクロールを防止 */
         }
 
-        canvas { display: block; width: 100%; }
+        canvas { display: block; width: 100%; height: auto; }
 
         .section-title {
-            font-size: 1rem;
+            font-size: 0.95rem;
             margin: 0 0 8px 0;
             font-weight: bold;
             border-bottom: 2px solid var(--border);
             padding-bottom: 4px;
         }
-
-        .hint { font-size: 0.8rem; color: #6c757d; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -102,22 +99,21 @@
 <div class="container">
     <h1>倍音合成シミュレーター</h1>
 
-    <!-- 目的波形・手書きツール -->
     <div class="control-group">
-        <label>目的波形:</label>
+        <label>波形:</label>
         <select id="presetSelect">
             <option value="sine">サイン波 (Sine)</option>
             <option value="sawtooth">ノコギリ波 (Sawtooth)</option>
             <option value="square">矩形波 (Square)</option>
             <option value="triangle">三角波 (Triangle)</option>
-            <option value="pulse10">パルス波 (10% Pulse)</option>
+            <option value="pulse10">パルス波 (10%)</option>
             <option value="custom">手書き (Custom)</option>
         </select>
 
-        <label>描画モード:</label>
+        <label>描画:</label>
         <select id="drawMode" disabled>
-            <option value="free">フリーハンド</option>
-            <option value="line">直線 (斜め)</option>
+            <option value="free">フリー</option>
+            <option value="line">直線</option>
             <option value="horizontal">横線</option>
         </select>
 
@@ -132,64 +128,43 @@
         <button id="clearBtn" disabled>クリア</button>
     </div>
 
-    <!-- 波形描画キャンバス -->
-    <div class="section-title">目的波形 (Target Waveform)</div>
+    <div class="section-title">目的波形 (手書きエリア)</div>
     <div class="canvas-container">
         <canvas id="targetCanvas" width="800" height="200"></canvas>
     </div>
 
-    <!-- 再生コントロール -->
     <div class="control-group">
         <button id="playBtn">▶ スタート</button>
         
-        <label>追加スピード:</label>
-        <input type="number" id="speedInput" value="0.2" min="0.05" max="2" step="0.05" style="width: 60px;"> 秒/倍音
+        <label>速度:</label>
+        <input type="number" id="speedInput" value="0.2" min="0.05" max="2" step="0.05" style="width: 50px;"> 秒/倍音
 
-        <label>最大倍音数:</label>
-        <input type="number" id="maxHarmonicsInput" value="50" min="5" max="500" style="width: 60px;">
+        <label>上限:</label>
+        <input type="number" id="maxHarmonicsInput" value="50" min="5" max="200" style="width: 50px;">
 
         <label>
-            <input type="checkbox" id="audioToggle"> 音を鳴らす (440Hz)
+            <input type="checkbox" id="audioToggle"> 音を鳴らす
         </label>
     </div>
 
-    <!-- 合成アニメーションキャンバス -->
-    <div class="section-title">合成波形ビュー (Synthesis View)</div>
+    <div class="section-title">合成波形ビュー</div>
     <div class="canvas-container">
         <canvas id="synthCanvas" width="800" height="200"></canvas>
     </div>
 
-    <!-- 倍音スペクトルキャンバス -->
-    <div class="section-title">倍音の強さ (Harmonics Spectrum)</div>
+    <div class="section-title">倍音の強さ</div>
     <div class="canvas-container">
         <canvas id="spectrumCanvas" width="800" height="120"></canvas>
     </div>
 </div>
 
 <script>
-/**
- * 倍音合成シミュレーター メインロジック
- */
+const RESOLUTION = 512;
+let targetData = new Float32Array(RESOLUTION);
+let a_n = [], b_n = [], magnitudes = [];
+let isPlaying = false, currentHarmonic = 0, maxHarmonics = 50, lastAddTime = 0, animationFrameId;
+let audioCtx = null, oscillator = null, masterGain = null;
 
-// --- 状態管理 ---
-const RESOLUTION = 512; // 波形の解像度
-let targetData = new Float32Array(RESOLUTION); // 目的波形のデータ (-1.0 ~ 1.0)
-let a_n = []; // コサイン成分
-let b_n = []; // サイン成分
-let magnitudes = []; // 倍音の強さ
-
-let isPlaying = false;
-let currentHarmonic = 0;
-let maxHarmonics = 50;
-let lastAddTime = 0;
-let animationFrameId;
-
-// --- オーディオ管理 ---
-let audioCtx = null;
-let oscillator = null;
-let masterGain = null;
-
-// --- UI要素 ---
 const presetSelect = document.getElementById('presetSelect');
 const drawMode = document.getElementById('drawMode');
 const gridSelect = document.getElementById('gridSelect');
@@ -206,37 +181,23 @@ const tCtx = targetCanvas.getContext('2d');
 const sCtx = synthCanvas.getContext('2d');
 const spCtx = spectrumCanvas.getContext('2d');
 
-// --- 波形プリセット生成 ---
 function generatePreset(type) {
     for (let i = 0; i < RESOLUTION; i++) {
         const x = (i / RESOLUTION) * 2 * Math.PI;
         let y = 0;
         switch(type) {
-            case 'sine':
-                y = Math.sin(x);
-                break;
-            case 'sawtooth':
-                y = 1 - (i / RESOLUTION) * 2;
-                break;
-            case 'square':
-                y = i < RESOLUTION / 2 ? 1 : -1;
-                break;
-            case 'triangle':
-                y = 2 * Math.abs(2 * (i / RESOLUTION) - 1) - 1;
-                break;
-            case 'pulse10':
-                y = (i / RESOLUTION) < 0.1 ? 1 : -1;
-                break;
-            case 'custom':
-                return; // 手書き時は上書きしない
+            case 'sine': y = Math.sin(x); break;
+            case 'sawtooth': y = 1 - (i / RESOLUTION) * 2; break;
+            case 'square': y = i < RESOLUTION / 2 ? 1 : -1; break;
+            case 'triangle': y = 2 * Math.abs(2 * (i / RESOLUTION) - 1) - 1; break;
+            case 'pulse10': y = (i / RESOLUTION) < 0.1 ? 1 : -1; break;
+            case 'custom': return;
         }
         targetData[i] = y;
     }
     updateFourier();
 }
 
-// --- フーリエ変換 (離散フーリエ変換 DFT) ---
-// 描画された波形から倍音成分(a_n, b_n)を抽出する
 function updateFourier() {
     maxHarmonics = parseInt(maxHarmonicsInput.value);
     a_n = new Float32Array(maxHarmonics + 1);
@@ -244,8 +205,7 @@ function updateFourier() {
     magnitudes = new Float32Array(maxHarmonics + 1);
 
     for (let k = 0; k <= maxHarmonics; k++) {
-        let sumA = 0;
-        let sumB = 0;
+        let sumA = 0, sumB = 0;
         for (let i = 0; i < RESOLUTION; i++) {
             const x = (i / RESOLUTION) * 2 * Math.PI;
             sumA += targetData[i] * Math.cos(k * x);
@@ -253,39 +213,23 @@ function updateFourier() {
         }
         a_n[k] = (2 / RESOLUTION) * sumA;
         b_n[k] = (2 / RESOLUTION) * sumB;
-        if (k === 0) {
-            a_n[0] = a_n[0] / 2; // DC成分調整
-        }
+        if (k === 0) a_n[0] /= 2;
         magnitudes[k] = Math.sqrt(a_n[k]*a_n[k] + b_n[k]*b_n[k]);
     }
-    drawTarget();
-    drawSpectrum();
+    drawTarget(); drawSpectrum();
     if(!isPlaying) drawSynth(0);
 }
 
-// --- 描画ユーティリティ ---
 function drawGrid(ctx, width, height) {
     const gridVal = parseInt(gridSelect.value);
     if (gridVal === 0) return;
-
-    ctx.strokeStyle = '#e9ecef';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    // 縦線
+    ctx.strokeStyle = '#e9ecef'; ctx.lineWidth = 1; ctx.beginPath();
     for (let i = 1; i < gridVal; i++) {
-        const x = (width / gridVal) * i;
-        ctx.moveTo(x, 0); ctx.lineTo(x, height);
-    }
-    // 横線
-    for (let i = 1; i < gridVal; i++) {
-        const y = (height / gridVal) * i;
-        ctx.moveTo(0, y); ctx.lineTo(width, y);
+        ctx.moveTo((width / gridVal) * i, 0); ctx.lineTo((width / gridVal) * i, height);
+        ctx.moveTo(0, (height / gridVal) * i); ctx.lineTo(width, (height / gridVal) * i);
     }
     ctx.stroke();
-    
-    // 中心線
-    ctx.strokeStyle = '#ced4da';
-    ctx.beginPath();
+    ctx.strokeStyle = '#ced4da'; ctx.beginPath();
     ctx.moveTo(0, height/2); ctx.lineTo(width, height/2);
     ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height);
     ctx.stroke();
@@ -296,171 +240,124 @@ function getY(val, height) { return height / 2 - (val * height / 2.2); }
 function drawTarget() {
     tCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
     drawGrid(tCtx, targetCanvas.width, targetCanvas.height);
-
-    tCtx.beginPath();
-    tCtx.strokeStyle = 'rgba(0,0,0,0.8)';
-    tCtx.lineWidth = 2;
+    tCtx.beginPath(); tCtx.strokeStyle = 'rgba(0,0,0,0.8)'; tCtx.lineWidth = 2;
     for (let i = 0; i < RESOLUTION; i++) {
         const x = (i / RESOLUTION) * targetCanvas.width;
         const y = getY(targetData[i], targetCanvas.height);
-        if (i === 0) tCtx.moveTo(x, y);
-        else tCtx.lineTo(x, y);
+        if (i === 0) tCtx.moveTo(x, y); else tCtx.lineTo(x, y);
     }
     tCtx.stroke();
 }
 
-function drawSynth(harmonicsLimit) {
+function drawSynth(limit) {
     sCtx.clearRect(0, 0, synthCanvas.width, synthCanvas.height);
-    
-    // 薄い目的波形を背景に描画
-    sCtx.beginPath();
-    sCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    sCtx.lineWidth = 4;
+    sCtx.beginPath(); sCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; sCtx.lineWidth = 4;
     for (let i = 0; i < RESOLUTION; i++) {
-        const x = (i / RESOLUTION) * synthCanvas.width;
-        const y = getY(targetData[i], synthCanvas.height);
-        if (i === 0) sCtx.moveTo(x, y);
-        else sCtx.lineTo(x, y);
+        const x = (i / RESOLUTION) * synthCanvas.width, y = getY(targetData[i], synthCanvas.height);
+        if (i === 0) sCtx.moveTo(x, y); else sCtx.lineTo(x, y);
     }
     sCtx.stroke();
 
-    // 合成波形の計算と描画
-    sCtx.beginPath();
-    sCtx.strokeStyle = '#212529';
-    sCtx.lineWidth = 2;
-    
+    sCtx.beginPath(); sCtx.strokeStyle = '#212529'; sCtx.lineWidth = 2;
     for (let i = 0; i < RESOLUTION; i++) {
         const x_val = (i / RESOLUTION) * 2 * Math.PI;
-        let y_val = a_n[0]; // DCオフセット
-        for (let k = 1; k <= harmonicsLimit; k++) {
-            y_val += a_n[k] * Math.cos(k * x_val) + b_n[k] * Math.sin(k * x_val);
-        }
-        
-        const px = (i / RESOLUTION) * synthCanvas.width;
-        const py = getY(y_val, synthCanvas.height);
-        if (i === 0) sCtx.moveTo(px, py);
-        else sCtx.lineTo(px, py);
+        let y_val = a_n[0];
+        for (let k = 1; k <= limit; k++) y_val += a_n[k] * Math.cos(k * x_val) + b_n[k] * Math.sin(k * x_val);
+        const px = (i / RESOLUTION) * synthCanvas.width, py = getY(y_val, synthCanvas.height);
+        if (i === 0) sCtx.moveTo(px, py); else sCtx.lineTo(px, py);
     }
     sCtx.stroke();
 }
 
 function drawSpectrum() {
     spCtx.clearRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-    const maxMag = Math.max(...magnitudes.slice(1)); // 最大振幅を取得
+    const maxMag = Math.max(...magnitudes.slice(1));
     const barWidth = Math.min(20, (spectrumCanvas.width - 40) / maxHarmonics);
-    
     for (let k = 1; k <= maxHarmonics; k++) {
         const px = 20 + (k - 1) * (spectrumCanvas.width - 40) / maxHarmonics;
         const h = maxMag > 0 ? (magnitudes[k] / maxMag) * (spectrumCanvas.height - 20) : 0;
-        
         spCtx.fillStyle = (k <= currentHarmonic && isPlaying) ? '#0d6efd' : '#e9ecef';
         spCtx.fillRect(px, spectrumCanvas.height - h - 10, barWidth - 1, h);
     }
 }
 
-// --- 手書きツールロジック ---
-let isDrawing = false;
-let startDrawX = 0;
-let startDrawY = 0;
+// --- 手書きツール (マウス & スマホタッチ両対応) ---
+let isDrawing = false, startDrawX = 0, startDrawY = 0;
 let tempTargetData = new Float32Array(RESOLUTION);
 
-targetCanvas.addEventListener('mousedown', (e) => {
+function getPointerPos(e) {
+    const rect = targetCanvas.getBoundingClientRect();
+    const scaleX = targetCanvas.width / rect.width;
+    const scaleY = targetCanvas.height / rect.height;
+    let clientX = e.clientX, clientY = e.clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
+    }
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+function startDrawing(e) {
     if (presetSelect.value !== 'custom') return;
+    if (e.type === 'touchstart') e.preventDefault(); // スクロール防止
     isDrawing = true;
-    const rect = targetCanvas.getBoundingClientRect();
-    let cx = e.clientX - rect.left;
-    let cy = e.clientY - rect.top;
+    let pos = getPointerPos(e);
     
-    // グリッドスナップ
     const gridVal = parseInt(gridSelect.value);
     if (gridVal > 0) {
-        const stepX = targetCanvas.width / gridVal;
-        const stepY = targetCanvas.height / gridVal;
-        cx = Math.round(cx / stepX) * stepX;
-        cy = Math.round(cy / stepY) * stepY;
+        pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
+        pos.y = Math.round(pos.y / (targetCanvas.height / gridVal)) * (targetCanvas.height / gridVal);
     }
-    
-    startDrawX = cx;
-    startDrawY = cy;
-    tempTargetData.set(targetData); // バックアップ
-});
+    startDrawX = pos.x; startDrawY = pos.y;
+    tempTargetData.set(targetData);
+}
 
-targetCanvas.addEventListener('mousemove', (e) => {
+function drawLine(e) {
     if (!isDrawing || presetSelect.value !== 'custom') return;
-    const rect = targetCanvas.getBoundingClientRect();
-    let cx = e.clientX - rect.left;
-    let cy = e.clientY - rect.top;
+    if (e.type === 'touchmove') e.preventDefault(); // スクロール防止
+    let pos = getPointerPos(e);
     
-    // グリッドスナップ
     const gridVal = parseInt(gridSelect.value);
     if (gridVal > 0) {
-        const stepX = targetCanvas.width / gridVal;
-        const stepY = targetCanvas.height / gridVal;
-        cx = Math.round(cx / stepX) * stepX;
-        cy = Math.round(cy / stepY) * stepY;
+        pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
+        pos.y = Math.round(pos.y / (targetCanvas.height / gridVal)) * (targetCanvas.height / gridVal);
     }
 
-    const mode = drawMode.value;
-    targetData.set(tempTargetData); // 一旦リセット
+    targetData.set(tempTargetData);
+    const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
+    const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((pos.x / targetCanvas.width) * RESOLUTION)));
+    const val1 = -((startDrawY - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
+    const val2 = -((pos.y - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
+    const minI = Math.min(startIdx, endIdx), maxI = Math.max(startIdx, endIdx);
 
-    if (mode === 'free') {
-        // フリーハンド: startDrawXからcxまでの間を補間して埋める
-        const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
-        const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((cx / targetCanvas.width) * RESOLUTION)));
-        
-        const val1 = -((startDrawY - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-        const val2 = -((cy - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-
-        const minI = Math.min(startIdx, endIdx);
-        const maxI = Math.max(startIdx, endIdx);
-        
+    if (drawMode.value === 'free' || drawMode.value === 'line') {
         for (let i = minI; i <= maxI; i++) {
             const t = maxI === minI ? 0 : (i - startIdx) / (endIdx - startIdx);
             targetData[i] = Math.max(-1, Math.min(1, val1 + t * (val2 - val1)));
         }
-        
-        // 連続描画のために更新
-        startDrawX = cx;
-        startDrawY = cy;
-        tempTargetData.set(targetData);
-    } 
-    else if (mode === 'horizontal') {
-        const val = -((startDrawY - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-        const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
-        const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((cx / targetCanvas.width) * RESOLUTION)));
-        const minI = Math.min(startIdx, endIdx);
-        const maxI = Math.max(startIdx, endIdx);
-        for (let i = minI; i <= maxI; i++) targetData[i] = Math.max(-1, Math.min(1, val));
-    }
-    else if (mode === 'line') {
-        const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
-        const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((cx / targetCanvas.width) * RESOLUTION)));
-        const val1 = -((startDrawY - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-        const val2 = -((cy - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-
-        const minI = Math.min(startIdx, endIdx);
-        const maxI = Math.max(startIdx, endIdx);
-        for (let i = minI; i <= maxI; i++) {
-            const t = maxI === minI ? 0 : (i - startIdx) / (endIdx - startIdx);
-            targetData[i] = Math.max(-1, Math.min(1, val1 + t * (val2 - val1)));
+        if (drawMode.value === 'free') {
+            startDrawX = pos.x; startDrawY = pos.y;
+            tempTargetData.set(targetData);
         }
+    } else if (drawMode.value === 'horizontal') {
+        for (let i = minI; i <= maxI; i++) targetData[i] = Math.max(-1, Math.min(1, val1));
     }
-    
     drawTarget();
-});
+}
 
-targetCanvas.addEventListener('mouseup', () => {
-    if (isDrawing) {
-        isDrawing = false;
-        updateFourier();
-    }
-});
-targetCanvas.addEventListener('mouseleave', () => {
-    if (isDrawing) {
-        isDrawing = false;
-        updateFourier();
-    }
-});
+function stopDrawing() {
+    if (isDrawing) { isDrawing = false; updateFourier(); }
+}
+
+// イベントリスナー登録 (PC & スマホ)
+targetCanvas.addEventListener('mousedown', startDrawing);
+targetCanvas.addEventListener('mousemove', drawLine);
+targetCanvas.addEventListener('mouseup', stopDrawing);
+targetCanvas.addEventListener('mouseleave', stopDrawing);
+
+targetCanvas.addEventListener('touchstart', startDrawing, {passive: false});
+targetCanvas.addEventListener('touchmove', drawLine, {passive: false});
+targetCanvas.addEventListener('touchend', stopDrawing);
+targetCanvas.addEventListener('touchcancel', stopDrawing);
 
 
 // --- オーディオエンジン ---
@@ -468,7 +365,7 @@ function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         masterGain = audioCtx.createGain();
-        masterGain.gain.value = 0.1; // 爆音防止 (10%音量)
+        masterGain.gain.value = 0.1;
         masterGain.connect(audioCtx.destination);
     }
 }
@@ -476,21 +373,12 @@ function initAudio() {
 function updateAudio(limit) {
     if (!audioToggle.checked || !isPlaying) return;
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    
-    // Web Audio APIのPeriodicWaveを使用して、計算したフーリエ係数をそのまま波形にする
-    const real = new Float32Array(limit + 1);
-    const imag = new Float32Array(limit + 1);
-    
-    for (let k = 1; k <= limit; k++) {
-        real[k] = a_n[k]; // コサイン成分
-        imag[k] = b_n[k]; // サイン成分
-    }
-    
+    const real = new Float32Array(limit + 1), imag = new Float32Array(limit + 1);
+    for (let k = 1; k <= limit; k++) { real[k] = a_n[k]; imag[k] = b_n[k]; }
     const wave = audioCtx.createPeriodicWave(real, imag, {disableNormalization: false});
-    
     if (!oscillator) {
         oscillator = audioCtx.createOscillator();
-        oscillator.frequency.value = 440; // 440Hz固定
+        oscillator.frequency.value = 440;
         oscillator.connect(masterGain);
         oscillator.start();
     }
@@ -498,97 +386,50 @@ function updateAudio(limit) {
 }
 
 function stopAudio() {
-    if (oscillator) {
-        oscillator.stop();
-        oscillator.disconnect();
-        oscillator = null;
-    }
+    if (oscillator) { oscillator.stop(); oscillator.disconnect(); oscillator = null; }
 }
 
-
-// --- アニメーションループ ---
 function animate(time) {
     if (!isPlaying) return;
-
-    const speed = parseFloat(speedInput.value) * 1000; // msに変換
+    const speed = parseFloat(speedInput.value) * 1000;
     if (time - lastAddTime > speed) {
         lastAddTime = time;
         if (currentHarmonic < maxHarmonics) {
-            currentHarmonic++;
-            drawSynth(currentHarmonic);
-            drawSpectrum();
-            updateAudio(currentHarmonic);
+            currentHarmonic++; drawSynth(currentHarmonic); drawSpectrum(); updateAudio(currentHarmonic);
         } else {
-            // 最後まで描画完了
-            playBtn.innerText = "▶ リスタート";
-            isPlaying = false;
-            stopAudio();
-            return;
+            playBtn.innerText = "▶ リスタート"; isPlaying = false; stopAudio(); return;
         }
     }
     animationFrameId = requestAnimationFrame(animate);
 }
 
-// --- イベントリスナー ---
 presetSelect.addEventListener('change', (e) => {
     const isCustom = e.target.value === 'custom';
-    drawMode.disabled = !isCustom;
-    clearBtn.disabled = !isCustom;
-    if (!isCustom) {
-        generatePreset(e.target.value);
-    }
+    drawMode.disabled = !isCustom; clearBtn.disabled = !isCustom;
+    if (!isCustom) generatePreset(e.target.value);
 });
 
-clearBtn.addEventListener('click', () => {
-    targetData.fill(0);
-    updateFourier();
-});
-
-maxHarmonicsInput.addEventListener('change', (e) => {
-    const val = parseInt(e.target.value);
-    if (val > 200) {
-        alert("警告: 倍音数を大きくしすぎると、ブラウザの動作が重くなる可能性があります！");
-    }
-    updateFourier();
-});
-
-gridSelect.addEventListener('change', () => {
-    drawTarget();
-});
+clearBtn.addEventListener('click', () => { targetData.fill(0); updateFourier(); });
+maxHarmonicsInput.addEventListener('change', updateFourier);
+gridSelect.addEventListener('change', drawTarget);
 
 playBtn.addEventListener('click', () => {
     if (isPlaying) {
-        // 停止
-        isPlaying = false;
-        playBtn.innerText = "▶ スタート";
-        playBtn.classList.remove('active');
-        cancelAnimationFrame(animationFrameId);
-        stopAudio();
+        isPlaying = false; playBtn.innerText = "▶ スタート"; playBtn.classList.remove('active');
+        cancelAnimationFrame(animationFrameId); stopAudio();
     } else {
-        // 再生開始
-        initAudio();
-        isPlaying = true;
-        playBtn.innerText = "■ ストップ";
-        playBtn.classList.add('active');
-        
-        if (currentHarmonic >= maxHarmonics || playBtn.innerText === "▶ リスタート") {
-            currentHarmonic = 0; // リセット
-        }
-        
-        lastAddTime = performance.now();
-        animate(lastAddTime);
+        initAudio(); isPlaying = true; playBtn.innerText = "■ ストップ"; playBtn.classList.add('active');
+        if (currentHarmonic >= maxHarmonics || playBtn.innerText === "▶ リスタート") currentHarmonic = 0;
+        lastAddTime = performance.now(); animate(lastAddTime);
     }
 });
 
 audioToggle.addEventListener('change', () => {
-    if (!audioToggle.checked) stopAudio();
-    else if (isPlaying) updateAudio(currentHarmonic);
+    if (!audioToggle.checked) stopAudio(); else if (isPlaying) updateAudio(currentHarmonic);
 });
 
-
-// --- 初期化 ---
+// スマホ画面幅対応 (メタタグ追加とスタイル調整) 済み
 generatePreset('sine');
-
 </script>
 </body>
 </html>
