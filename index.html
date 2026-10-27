@@ -1,522 +1,495 @@
+html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>倍音合成シミュレーター (Fourier Synthesizer)</title>
+    <title>共感覚（色聴）トレーニングアプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root {
-            --bg: #ffffff;
-            --surface: #f8f9fa;
-            --border: #ced4da;
-            --text: #212529;
-            --accent: #0d6efd;
-            --accent-hover: #0b5ed7;
-        }
-
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--surface);
-            color: var(--text);
-            margin: 0;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .container {
-            background-color: var(--bg);
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            max-width: 800px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        h1 { margin-top: 0; font-size: 1.2rem; text-align: center; }
-
-        .control-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 16px;
-            align-items: center;
-            background: var(--surface);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        label { font-size: 0.85rem; font-weight: bold; }
-        
-        select, input[type="number"] {
-            padding: 6px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            font-size: 0.9rem;
-            max-width: 80px;
-        }
-
-        button {
-            padding: 8px 16px;
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Tailwind gray-900 */
+            color: #f3f4f6; /* Tailwind gray-100 */
         }
         
-        button:hover { background-color: var(--accent-hover); }
-        button.active { background-color: #dc3545; }
-        button.active:hover { background-color: #c82333; }
-
-        .canvas-container {
+        .wheel-container {
             position: relative;
-            margin-bottom: 16px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            background: white;
-            overflow: hidden;
-            touch-action: none;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+            border-radius: 50%;
         }
 
-        canvas { display: block; width: 100%; height: auto; }
-        
-        /* 倍音編集用のカーソル */
-        #spectrumCanvas { cursor: crosshair; }
-
-        .section-title {
-            font-size: 0.95rem;
-            margin: 0 0 8px 0;
-            font-weight: bold;
-            border-bottom: 2px solid var(--border);
-            padding-bottom: 4px;
+        .note-btn {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
             display: flex;
-            align-items: baseline;
-            justify-content: space-between;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.25rem;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+            transition: transform 0.1s, filter 0.2s;
+            text-shadow: 0px 1px 3px rgba(0,0,0,0.8);
+            color: white;
+            user-select: none;
+        }
+
+        .note-btn:active {
+            transform: scale(0.9);
+        }
+
+        .note-btn.playing {
+            transform: scale(1.15);
+            box-shadow: 0 0 20px currentColor;
+            z-index: 10;
+        }
+
+        /* 画面サイズに応じたレスポンシブな円形配置用 */
+        @media (min-width: 768px) {
+            .wheel-container {
+                width: 440px;
+                height: 440px;
+            }
+            .note-btn {
+                width: 90px;
+                height: 90px;
+                font-size: 1.5rem;
+            }
         }
         
-        .hint {
-            font-size: 0.75rem;
-            color: #6c757d;
-            font-weight: normal;
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7); /* gray-800 with opacity */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.5); /* gray-600 */
+            transition: opacity 0.5s ease-in;
+        }
+
+        header {
+            transition: opacity 0.5s ease-in;
+        }
+
+        /* 没入モード発動中にUIを消すためのクラス */
+        body.immersive-playing .glass-panel,
+        body.immersive-playing header {
+            opacity: 0 !important;
+            transition: opacity 0s;
+            pointer-events: none;
         }
     </style>
 </head>
-<body>
+<body class="min-h-screen flex flex-col items-center py-8 px-4">
 
-<div class="container">
-    <h1>倍音合成シミュレーター</h1>
+    <div class="max-w-3xl w-full flex flex-col gap-6">
+        <!-- ヘッダー -->
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-2">
+                共感覚トレーニング
+            </h1>
+            <p class="text-gray-400 text-sm md:text-base">音と色の結びつきを脳に学習させる実験的アプリケーション</p>
+        </header>
 
-    <div class="control-group">
-        <label>波形:</label>
-        <select id="presetSelect">
-            <option value="sine">サイン波 (Sine)</option>
-            <option value="sawtooth">ノコギリ波 (Sawtooth)</option>
-            <option value="square">矩形波 (Square)</option>
-            <option value="triangle">三角波 (Triangle)</option>
-            <option value="pulse10">パルス波 (10%)</option>
-            <option value="custom">手書き (Custom)</option>
-        </select>
+        <!-- コントロールパネル -->
+        <div class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            <!-- モード切替 -->
+            <div class="flex bg-gray-900 rounded-lg p-1">
+                <button id="mode-training" class="px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-blue-600 text-white shadow" onclick="setMode('training')">
+                    トレーニングモード
+                </button>
+                <button id="mode-quiz" class="px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white" onclick="setMode('quiz')">
+                    クイズモード
+                </button>
+            </div>
 
-        <label>描画:</label>
-        <select id="drawMode" disabled>
-            <option value="free">フリー</option>
-            <option value="line">直線</option>
-            <option value="horizontal">横線</option>
-        </select>
+            <!-- オクターブ選択 -->
+            <div class="flex items-center gap-3">
+                <label class="text-gray-300 font-semibold text-sm">オクターブ:</label>
+                <select id="octave-select" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" onchange="changeOctave(this.value)">
+                    <option value="3">3 (低音 / 暗い色)</option>
+                    <option value="4" selected>4 (基準 / 標準色)</option>
+                    <option value="5">5 (高音 / 明るい色)</option>
+                </select>
+            </div>
 
-        <label>グリッド:</label>
-        <select id="gridSelect">
-            <option value="0">なし</option>
-            <option value="4">4分割</option>
-            <option value="8" selected>8分割</option>
-            <option value="16">16分割</option>
-        </select>
+            <!-- 没入モード切替 -->
+            <div class="flex items-center gap-2 mt-2 md:mt-0 border-l border-gray-700 pl-0 md:pl-4">
+                <input type="checkbox" id="immersive-toggle" class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 cursor-pointer" onchange="toggleImmersiveState()">
+                <label for="immersive-toggle" class="text-gray-200 font-bold text-sm cursor-pointer">没入モード</label>
+            </div>
+        </div>
+
+        <!-- クイズ用ステータスパネル (クイズモード時のみ表示) -->
+        <div id="quiz-panel" class="hidden glass-panel p-4 rounded-xl flex flex-col items-center gap-4">
+            <div class="flex justify-between w-full max-w-sm px-4">
+                <div class="text-lg font-bold">スコア: <span id="score-display" class="text-blue-400">0</span> / <span id="attempts-display">0</span></div>
+                <div id="quiz-feedback" class="text-lg font-bold transition-opacity duration-300 opacity-0">正解！</div>
+            </div>
+            <button id="play-quiz-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition active:scale-95" onclick="playQuizNote()">
+                ▶ 問題の音を聞く
+            </button>
+            <p class="text-xs text-gray-400 text-center">音が鳴ったら、対応する色のボタンをタップしてください。</p>
+        </div>
+
+        <!-- メイン画面（色相環） -->
+        <div class="flex-1 flex items-center justify-center py-10">
+            <div id="wheel-container" class="wheel-container">
+                <!-- Javascriptでボタンを生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === データ定義 ===
+        // 音名、色相(Hue 0-360)、第4オクターブの周波数(Hz)
+        const notesData = [
+            { name: "C",  hue: 0,   freq: 261.63 },
+            { name: "C#", hue: 30,  freq: 277.18 },
+            { name: "D",  hue: 60,  freq: 293.66 },
+            { name: "D#", hue: 90,  freq: 311.13 },
+            { name: "E",  hue: 120, freq: 329.63 },
+            { name: "F",  hue: 150, freq: 349.23 },
+            { name: "F#", hue: 180, freq: 369.99 },
+            { name: "G",  hue: 210, freq: 392.00 },
+            { name: "G#", hue: 240, freq: 415.30 },
+            { name: "A",  hue: 270, freq: 440.00 },
+            { name: "A#", hue: 300, freq: 466.16 },
+            { name: "B",  hue: 330, freq: 493.88 },
+        ];
+
+        // === 状態管理 ===
+        let currentMode = 'training'; // 'training' or 'quiz'
+        let currentOctave = 4;        // 3, 4, 5
+        let audioContext = null;
+        let isPlaying = false;
+        let activeOsc = null;
+        let activeGain = null;
         
-        <button id="clearBtn" disabled>クリア</button>
-    </div>
+        // クイズ用状態
+        let quizTargetNote = null;
+        let quizTargetOctave = null;
+        let score = 0;
+        let attempts = 0;
+        let quizState = 'waiting'; // 'waiting', 'guessing'
 
-    <div class="section-title">目的波形 (手書きエリア)</div>
-    <div class="canvas-container">
-        <canvas id="targetCanvas" width="800" height="200"></canvas>
-    </div>
+        // 没入モード用状態
+        let immersiveTimer = null;
+        const defaultBgColor = '#111827';
 
-    <div class="control-group">
-        <button id="playBtn">▶ スタート</button>
-        
-        <label>速度:</label>
-        <input type="number" id="speedInput" value="0.2" min="0.05" max="2" step="0.05"> 秒/本
+        // === 初期化 ===
+        window.onload = () => {
+            renderWheel();
+            updateColors();
+        };
 
-        <label>上限:</label>
-        <input type="number" id="maxHarmonicsInput" value="50" min="5" max="200">
-
-        <label>
-            <input type="checkbox" id="audioToggle"> 音を鳴らす
-        </label>
-    </div>
-
-    <div class="section-title">合成波形ビュー</div>
-    <div class="canvas-container">
-        <canvas id="synthCanvas" width="800" height="200"></canvas>
-    </div>
-
-    <div class="section-title">
-        <span>倍音の強さ</span>
-        <span class="hint">バーをなぞって直接編集できます👆</span>
-    </div>
-    <div class="canvas-container">
-        <canvas id="spectrumCanvas" width="800" height="120"></canvas>
-    </div>
-</div>
-
-<script>
-const RESOLUTION = 512;
-let targetData = new Float32Array(RESOLUTION);
-let a_n = [], b_n = [], magnitudes = [];
-let isPlaying = false, currentHarmonic = 0, maxHarmonics = 50, lastAddTime = 0, animationFrameId;
-let audioCtx = null, oscillator = null, masterGain = null;
-const UI_MAX_MAG = 1.5; // 倍音グラフの表示スケール上限値
-
-const presetSelect = document.getElementById('presetSelect');
-const drawMode = document.getElementById('drawMode');
-const gridSelect = document.getElementById('gridSelect');
-const clearBtn = document.getElementById('clearBtn');
-const playBtn = document.getElementById('playBtn');
-const speedInput = document.getElementById('speedInput');
-const maxHarmonicsInput = document.getElementById('maxHarmonicsInput');
-const audioToggle = document.getElementById('audioToggle');
-
-const targetCanvas = document.getElementById('targetCanvas');
-const synthCanvas = document.getElementById('synthCanvas');
-const spectrumCanvas = document.getElementById('spectrumCanvas');
-const tCtx = targetCanvas.getContext('2d');
-const sCtx = synthCanvas.getContext('2d');
-const spCtx = spectrumCanvas.getContext('2d');
-
-function generatePreset(type) {
-    for (let i = 0; i < RESOLUTION; i++) {
-        const x = (i / RESOLUTION) * 2 * Math.PI;
-        let y = 0;
-        switch(type) {
-            case 'sine': y = Math.sin(x); break;
-            case 'sawtooth': y = 1 - (i / RESOLUTION) * 2; break;
-            case 'square': y = i < RESOLUTION / 2 ? 1 : -1; break;
-            case 'triangle': y = 2 * Math.abs(2 * (i / RESOLUTION) - 1) - 1; break;
-            case 'pulse10': y = (i / RESOLUTION) < 0.1 ? 1 : -1; break;
-            case 'custom': return;
+        function toggleImmersiveState() {
+            updateColors();
         }
-        targetData[i] = y;
-    }
-    updateFourier();
-}
 
-function updateFourier() {
-    maxHarmonics = parseInt(maxHarmonicsInput.value);
-    a_n = new Float32Array(maxHarmonics + 1);
-    b_n = new Float32Array(maxHarmonics + 1);
-    magnitudes = new Float32Array(maxHarmonics + 1);
-
-    for (let k = 0; k <= maxHarmonics; k++) {
-        let sumA = 0, sumB = 0;
-        for (let i = 0; i < RESOLUTION; i++) {
-            const x = (i / RESOLUTION) * 2 * Math.PI;
-            sumA += targetData[i] * Math.cos(k * x);
-            sumB += targetData[i] * Math.sin(k * x);
+        // === 音声再生 (Web Audio API) ===
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            return audioContext;
         }
-        a_n[k] = (2 / RESOLUTION) * sumA;
-        b_n[k] = (2 / RESOLUTION) * sumB;
-        if (k === 0) a_n[0] /= 2;
-        magnitudes[k] = Math.sqrt(a_n[k]*a_n[k] + b_n[k]*b_n[k]);
-    }
-    drawTarget(); drawSpectrum();
-    if(!isPlaying) drawSynth(0);
-}
 
-function drawGrid(ctx, width, height) {
-    const gridVal = parseInt(gridSelect.value);
-    if (gridVal === 0) return;
-    ctx.strokeStyle = '#e9ecef'; ctx.lineWidth = 1; ctx.beginPath();
-    for (let i = 1; i < gridVal; i++) {
-        ctx.moveTo((width / gridVal) * i, 0); ctx.lineTo((width / gridVal) * i, height);
-        ctx.moveTo(0, (height / gridVal) * i); ctx.lineTo(width, (height / gridVal) * i);
-    }
-    ctx.stroke();
-    ctx.strokeStyle = '#ced4da'; ctx.beginPath();
-    ctx.moveTo(0, height/2); ctx.lineTo(width, height/2);
-    ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height);
-    ctx.stroke();
-}
+        function playTone(frequency, duration = 1.0) {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+            
+            // 前の音が鳴っていれば、短いフェードアウトをかけて停止（ノイズ・濁り防止）
+            if (activeGain && activeOsc) {
+                activeGain.gain.cancelScheduledValues(now);
+                activeGain.gain.setValueAtTime(activeGain.gain.value, now);
+                activeGain.gain.linearRampToValueAtTime(0, now + 0.05);
+                
+                try {
+                    activeOsc.stop(now + 0.05);
+                } catch (e) {
+                    // すでに停止している場合のエラーを無視
+                }
+            }
+            
+            // オシレーター（サイン波生成）
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.value = frequency;
 
-function getY(val, height) { return height / 2 - (val * height / 2.2); }
+            // ゲイン（音量調整・クリック音防止のためのフェード処理）
+            const gainNode = ctx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            // エンベロープ（音の立ち上がりと減衰）
+            gainNode.gain.setValueAtTime(0, now);
+            gainNode.gain.linearRampToValueAtTime(0.8, now + 0.05); // Attack
+            
+            const releaseStartTime = Math.max(now + 0.05, now + duration - 0.1);
+            gainNode.gain.setValueAtTime(0.8, releaseStartTime); // Sustain
+            gainNode.gain.linearRampToValueAtTime(0, now + duration); // Release
 
-function drawTarget() {
-    tCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-    drawGrid(tCtx, targetCanvas.width, targetCanvas.height);
-    tCtx.beginPath(); tCtx.strokeStyle = 'rgba(0,0,0,0.8)'; tCtx.lineWidth = 2;
-    for (let i = 0; i < RESOLUTION; i++) {
-        const x = (i / RESOLUTION) * targetCanvas.width;
-        const y = getY(targetData[i], targetCanvas.height);
-        if (i === 0) tCtx.moveTo(x, y); else tCtx.lineTo(x, y);
-    }
-    tCtx.stroke();
-}
-
-function drawSynth(limit) {
-    sCtx.clearRect(0, 0, synthCanvas.width, synthCanvas.height);
-    sCtx.beginPath(); sCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)'; sCtx.lineWidth = 4;
-    for (let i = 0; i < RESOLUTION; i++) {
-        const x = (i / RESOLUTION) * synthCanvas.width, y = getY(targetData[i], synthCanvas.height);
-        if (i === 0) sCtx.moveTo(x, y); else sCtx.lineTo(x, y);
-    }
-    sCtx.stroke();
-
-    sCtx.beginPath(); sCtx.strokeStyle = '#212529'; sCtx.lineWidth = 2;
-    for (let i = 0; i < RESOLUTION; i++) {
-        const x_val = (i / RESOLUTION) * 2 * Math.PI;
-        let y_val = a_n[0];
-        for (let k = 1; k <= limit; k++) y_val += a_n[k] * Math.cos(k * x_val) + b_n[k] * Math.sin(k * x_val);
-        const px = (i / RESOLUTION) * synthCanvas.width, py = getY(y_val, synthCanvas.height);
-        if (i === 0) sCtx.moveTo(px, py); else sCtx.lineTo(px, py);
-    }
-    sCtx.stroke();
-}
-
-function drawSpectrum() {
-    spCtx.clearRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
-    const spacing = (spectrumCanvas.width - 40) / Math.max(1, maxHarmonics - 1);
-    const barWidth = Math.max(1, Math.min(20, spacing * 0.8));
-    
-    for (let k = 1; k <= maxHarmonics; k++) {
-        const px = 20 + (k - 1) * spacing;
-        let h = (magnitudes[k] / UI_MAX_MAG) * (spectrumCanvas.height - 20);
-        h = Math.max(0, h); // マイナス防止
-        
-        spCtx.fillStyle = (k <= currentHarmonic && isPlaying) ? '#0d6efd' : '#adb5bd';
-        spCtx.fillRect(px - barWidth / 2, spectrumCanvas.height - h - 10, barWidth, h);
-    }
-}
-
-// --- 手書きツール ---
-let isDrawing = false, startDrawX = 0, startDrawY = 0;
-let tempTargetData = new Float32Array(RESOLUTION);
-
-function getPointerPos(e, canvasElem) {
-    const rect = canvasElem.getBoundingClientRect();
-    const scaleX = canvasElem.width / rect.width;
-    const scaleY = canvasElem.height / rect.height;
-    let clientX = e.clientX, clientY = e.clientY;
-    if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
-    }
-    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
-}
-
-function startDrawing(e) {
-    if (presetSelect.value !== 'custom') {
-        presetSelect.value = 'custom';
-        drawMode.disabled = false; clearBtn.disabled = false;
-    }
-    if (e.type === 'touchstart') e.preventDefault();
-    isDrawing = true;
-    let pos = getPointerPos(e, targetCanvas);
-    const gridVal = parseInt(gridSelect.value);
-    if (gridVal > 0) {
-        pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
-        pos.y = Math.round(pos.y / (targetCanvas.height / gridVal)) * (targetCanvas.height / gridVal);
-    }
-    startDrawX = pos.x; startDrawY = pos.y;
-    tempTargetData.set(targetData);
-}
-
-function drawLine(e) {
-    if (!isDrawing) return;
-    if (e.type === 'touchmove') e.preventDefault();
-    let pos = getPointerPos(e, targetCanvas);
-    const gridVal = parseInt(gridSelect.value);
-    if (gridVal > 0) {
-        pos.x = Math.round(pos.x / (targetCanvas.width / gridVal)) * (targetCanvas.width / gridVal);
-        pos.y = Math.round(pos.y / (targetCanvas.height / gridVal)) * (targetCanvas.height / gridVal);
-    }
-    targetData.set(tempTargetData);
-    const startIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((startDrawX / targetCanvas.width) * RESOLUTION)));
-    const endIdx = Math.max(0, Math.min(RESOLUTION - 1, Math.floor((pos.x / targetCanvas.width) * RESOLUTION)));
-    const val1 = -((startDrawY - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-    const val2 = -((pos.y - targetCanvas.height / 2) / (targetCanvas.height / 2.2));
-    const minI = Math.min(startIdx, endIdx), maxI = Math.max(startIdx, endIdx);
-
-    if (drawMode.value === 'free' || drawMode.value === 'line') {
-        for (let i = minI; i <= maxI; i++) {
-            const t = maxI === minI ? 0 : (i - startIdx) / (endIdx - startIdx);
-            targetData[i] = Math.max(-1, Math.min(1, val1 + t * (val2 - val1)));
+            osc.start(now);
+            osc.stop(now + duration);
+            
+            // 現在の音として保持
+            activeOsc = osc;
+            activeGain = gainNode;
         }
-        if (drawMode.value === 'free') {
-            startDrawX = pos.x; startDrawY = pos.y;
-            tempTargetData.set(targetData);
+
+        // === UIレンダリング ===
+        function renderWheel() {
+            const container = document.getElementById('wheel-container');
+            container.innerHTML = '';
+
+            const radius = 50; // 中心からの距離 (%)
+            const angleOffset = -90; // 0度が上（12時方向）になるように調整
+
+            notesData.forEach((note, index) => {
+                const button = document.createElement('button');
+                button.className = 'note-btn';
+                button.id = `btn-${note.name.replace('#', 'sharp')}`;
+                button.innerText = note.name;
+                
+                // 円周上の位置計算 (角度からX,Y座標を求める)
+                const angleDeg = (index * 30) + angleOffset;
+                const angleRad = angleDeg * (Math.PI / 180);
+                
+                // transformを使って配置（中央基準）
+                const x = 50 + (radius * Math.cos(angleRad));
+                const y = 50 + (radius * Math.sin(angleRad));
+                
+                button.style.left = `calc(${x}% - 35px)`; // 幅の半分を引いて中央揃え
+                button.style.top = `calc(${y}% - 35px)`;  // PC表示時の調整はCSSのメディアクエリと競合するため、ここではパーセンテージで大枠決定
+
+                // PCサイズ時（CSSメディアクエリのサイズ変更に対応）
+                const mediaQuery = window.matchMedia('(min-width: 768px)');
+                if (mediaQuery.matches) {
+                    button.style.left = `calc(${x}% - 45px)`;
+                    button.style.top = `calc(${y}% - 45px)`;
+                }
+
+                // イベントリスナー追加（マウスとタッチ両対応）
+                button.addEventListener('pointerdown', (e) => {
+                    e.preventDefault();
+                    handleNoteClick(note, button);
+                });
+
+                container.appendChild(button);
+            });
         }
-    } else if (drawMode.value === 'horizontal') {
-        for (let i = minI; i <= maxI; i++) targetData[i] = Math.max(-1, Math.min(1, val1));
-    }
-    drawTarget();
-}
 
-function stopDrawing() {
-    if (isDrawing) { isDrawing = false; updateFourier(); }
-}
-
-targetCanvas.addEventListener('mousedown', startDrawing);
-targetCanvas.addEventListener('mousemove', drawLine);
-targetCanvas.addEventListener('mouseup', stopDrawing);
-targetCanvas.addEventListener('mouseleave', stopDrawing);
-targetCanvas.addEventListener('touchstart', startDrawing, {passive: false});
-targetCanvas.addEventListener('touchmove', drawLine, {passive: false});
-targetCanvas.addEventListener('touchend', stopDrawing);
-targetCanvas.addEventListener('touchcancel', stopDrawing);
-
-
-// --- 倍音の直接操作ロジック ---
-let isEditingSpectrum = false;
-
-function updateTargetFromHarmonics() {
-    // 逆フーリエ変換でスペクトルから目的波形を再生成
-    for (let i = 0; i < RESOLUTION; i++) {
-        const x_val = (i / RESOLUTION) * 2 * Math.PI;
-        let y_val = a_n[0];
-        for (let k = 1; k <= maxHarmonics; k++) {
-            y_val += a_n[k] * Math.cos(k * x_val) + b_n[k] * Math.sin(k * x_val);
+        // オクターブに応じた色の明度を計算
+        function getLightness(octave) {
+            if (octave === 3) return 30; // 暗い
+            if (octave === 4) return 50; // 標準
+            if (octave === 5) return 70; // 明るい
+            return 50;
         }
-        targetData[i] = y_val;
-    }
-}
 
-function editSpectrum(e) {
-    if (e.type === 'touchmove' || e.type === 'touchstart') e.preventDefault();
-    
-    // カスタムモードに切り替え
-    if (presetSelect.value !== 'custom') {
-        presetSelect.value = 'custom';
-        drawMode.disabled = false; clearBtn.disabled = false;
-    }
-
-    let pos = getPointerPos(e, spectrumCanvas);
-    const spacing = (spectrumCanvas.width - 40) / Math.max(1, maxHarmonics - 1);
-    
-    // X座標から倍音番号 k を特定
-    let k = Math.round((pos.x - 20) / spacing) + 1;
-    if (k < 1) k = 1;
-    if (k > maxHarmonics) k = maxHarmonics;
-
-    // Y座標から振幅（強さ）を計算
-    let h = spectrumCanvas.height - 10 - pos.y;
-    let val = (h / (spectrumCanvas.height - 20)) * UI_MAX_MAG;
-    val = Math.max(0, val);
-
-    const oldMag = magnitudes[k];
-    if (oldMag > 0.0001) {
-        // 元の位相（サインとコサインの比率）を保ったまま音量だけ変える
-        const ratio = val / oldMag;
-        a_n[k] *= ratio;
-        b_n[k] *= ratio;
-    } else {
-        // 0だった場合はサイン波として追加
-        a_n[k] = 0;
-        b_n[k] = val; 
-    }
-    magnitudes[k] = val;
-
-    updateTargetFromHarmonics();
-    drawTarget();
-    drawSpectrum();
-
-    if (isPlaying && currentHarmonic >= k) {
-        updateAudio(currentHarmonic);
-        drawSynth(currentHarmonic);
-    } else if (!isPlaying) {
-        drawSynth(0);
-    }
-}
-
-spectrumCanvas.addEventListener('mousedown', (e) => { isEditingSpectrum = true; editSpectrum(e); });
-spectrumCanvas.addEventListener('mousemove', (e) => { if(isEditingSpectrum) editSpectrum(e); });
-window.addEventListener('mouseup', () => { isEditingSpectrum = false; });
-spectrumCanvas.addEventListener('touchstart', (e) => { isEditingSpectrum = true; editSpectrum(e); }, {passive: false});
-spectrumCanvas.addEventListener('touchmove', (e) => { if(isEditingSpectrum) editSpectrum(e); }, {passive: false});
-window.addEventListener('touchend', () => { isEditingSpectrum = false; });
-
-
-// --- オーディオエンジン ---
-function initAudio() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        masterGain = audioCtx.createGain();
-        masterGain.gain.value = 0.1;
-        masterGain.connect(audioCtx.destination);
-    }
-}
-
-function updateAudio(limit) {
-    if (!audioToggle.checked || !isPlaying) return;
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const real = new Float32Array(limit + 1), imag = new Float32Array(limit + 1);
-    for (let k = 1; k <= limit; k++) { real[k] = a_n[k]; imag[k] = b_n[k]; }
-    const wave = audioCtx.createPeriodicWave(real, imag, {disableNormalization: false});
-    if (!oscillator) {
-        oscillator = audioCtx.createOscillator();
-        oscillator.frequency.value = 440;
-        oscillator.connect(masterGain);
-        oscillator.start();
-    }
-    oscillator.setPeriodicWave(wave);
-}
-
-function stopAudio() {
-    if (oscillator) { oscillator.stop(); oscillator.disconnect(); oscillator = null; }
-}
-
-function animate(time) {
-    if (!isPlaying) return;
-    const speed = parseFloat(speedInput.value) * 1000;
-    if (time - lastAddTime > speed) {
-        lastAddTime = time;
-        if (currentHarmonic < maxHarmonics) {
-            currentHarmonic++; drawSynth(currentHarmonic); drawSpectrum(); updateAudio(currentHarmonic);
-        } else {
-            playBtn.innerText = "▶ リスタート"; isPlaying = false; stopAudio(); return;
+        // 全ボタンの色を更新
+        function updateColors() {
+            const isImmersive = document.getElementById('immersive-toggle').checked;
+            const lightness = getLightness(currentOctave);
+            
+            notesData.forEach(note => {
+                const button = document.getElementById(`btn-${note.name.replace('#', 'sharp')}`);
+                if (button) {
+                    if (isImmersive) {
+                        // 没入モード中はUIとしての色は消し、黒抜きにする
+                        button.style.backgroundColor = '#000000';
+                        button.style.color = '#ffffff';
+                        button.style.border = '2px solid #ffffff';
+                        button.style.boxShadow = 'none';
+                    } else {
+                        // 通常時は色を付ける
+                        const color = `hsl(${note.hue}, 100%, ${lightness}%)`;
+                        button.style.backgroundColor = color;
+                        button.style.color = 'white';
+                        button.style.border = 'none';
+                        button.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3)';
+                    }
+                }
+            });
         }
-    }
-    animationFrameId = requestAnimationFrame(animate);
-}
 
-presetSelect.addEventListener('change', (e) => {
-    const isCustom = e.target.value === 'custom';
-    drawMode.disabled = !isCustom; clearBtn.disabled = !isCustom;
-    if (!isCustom) generatePreset(e.target.value);
-});
+        // オクターブ変更ハンドラ
+        function changeOctave(val) {
+            currentOctave = parseInt(val);
+            updateColors();
+            
+            // クイズ待機中ならボタンの色を変えた後、すぐに問題を再生し直せるようにする
+            if (currentMode === 'quiz' && quizState === 'waiting' && quizTargetNote == null) {
+                // 特に何もしない
+            }
+        }
 
-clearBtn.addEventListener('click', () => { targetData.fill(0); updateFourier(); });
-maxHarmonicsInput.addEventListener('change', updateFourier);
-gridSelect.addEventListener('change', drawTarget);
+        // 背景色を音の色に変化させる処理
+        function triggerImmersiveEffect(hue, duration) {
+            const isImmersive = document.getElementById('immersive-toggle').checked;
+            if (!isImmersive) return;
 
-playBtn.addEventListener('click', () => {
-    if (isPlaying) {
-        isPlaying = false; playBtn.innerText = "▶ スタート"; playBtn.classList.remove('active');
-        cancelAnimationFrame(animationFrameId); stopAudio();
-    } else {
-        initAudio(); isPlaying = true; playBtn.innerText = "■ ストップ"; playBtn.classList.add('active');
-        if (currentHarmonic >= maxHarmonics || playBtn.innerText === "▶ リスタート") currentHarmonic = 0;
-        lastAddTime = performance.now(); animate(lastAddTime);
-    }
-});
+            // 彩度100%、明度50%の純色で画面全体を染める
+            const bgColor = `hsl(${hue}, 100%, 50%)`; 
+            document.body.style.backgroundColor = bgColor;
+            document.body.style.transition = 'background-color 0s'; // 瞬時に染める
+            document.body.classList.add('immersive-playing'); // UIを隠す
 
-audioToggle.addEventListener('change', () => {
-    if (!audioToggle.checked) stopAudio(); else if (isPlaying) updateAudio(currentHarmonic);
-});
+            if (immersiveTimer) clearTimeout(immersiveTimer);
+            
+            immersiveTimer = setTimeout(() => {
+                document.body.style.backgroundColor = defaultBgColor;
+                document.body.style.transition = 'background-color 0.8s ease-in';
+                document.body.classList.remove('immersive-playing'); // UIを戻す
+            }, duration * 1000);
+        }
 
-generatePreset('sine');
-</script>
+        // === アプリケーションロジック ===
+
+        // 音の周波数をオクターブに基づいて計算
+        function getCalculatedFreq(baseFreq, octave) {
+            if (octave === 3) return baseFreq / 2;
+            if (octave === 4) return baseFreq;
+            if (octave === 5) return baseFreq * 2;
+            return baseFreq;
+        }
+
+        // モード切替
+        function setMode(mode) {
+            currentMode = mode;
+            const btnTraining = document.getElementById('mode-training');
+            const btnQuiz = document.getElementById('mode-quiz');
+            const quizPanel = document.getElementById('quiz-panel');
+
+            if (mode === 'training') {
+                btnTraining.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-blue-600 text-white shadow";
+                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
+                quizPanel.classList.add('hidden');
+                resetQuiz();
+            } else {
+                btnTraining.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
+                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-purple-600 text-white shadow";
+                quizPanel.classList.remove('hidden');
+                resetQuiz();
+            }
+        }
+
+        // 音符ボタンクリック時の処理
+        function handleNoteClick(note, buttonElement) {
+            // トレーニングモード
+            if (currentMode === 'training') {
+                const freq = getCalculatedFreq(note.freq, currentOctave);
+                playTone(freq, 1.0);
+                visualizePlay(buttonElement);
+                
+                triggerImmersiveEffect(note.hue, 1.0);
+            } 
+            // クイズモード
+            else if (currentMode === 'quiz') {
+                if (quizState !== 'guessing') return; // 問題を再生していない場合は無視
+
+                quizState = 'waiting'; // 連続回答を防ぐ
+                const isCorrect = (note.name === quizTargetNote.name);
+                
+                // 回答の音を鳴らす
+                const freq = getCalculatedFreq(note.freq, currentOctave);
+                playTone(freq, 0.8);
+                visualizePlay(buttonElement);
+
+                triggerImmersiveEffect(note.hue, 0.8);
+
+                attempts++;
+                showQuizFeedback(isCorrect);
+                
+                if (isCorrect) {
+                    score++;
+                }
+
+                updateScoreDisplay();
+
+                // 次の問題のためにリセット
+                quizTargetNote = null;
+                document.getElementById('play-quiz-btn').disabled = false;
+                document.getElementById('play-quiz-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('play-quiz-btn').innerText = "▶ 次の問題を聞く";
+            }
+        }
+
+        // ボタンの光るアニメーション
+        function visualizePlay(button) {
+            button.classList.add('playing');
+            setTimeout(() => {
+                button.classList.remove('playing');
+            }, 300);
+        }
+
+        // === クイズロジック ===
+
+        function resetQuiz() {
+            score = 0;
+            attempts = 0;
+            quizState = 'waiting';
+            quizTargetNote = null;
+            updateScoreDisplay();
+            document.getElementById('play-quiz-btn').disabled = false;
+            document.getElementById('play-quiz-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('play-quiz-btn').innerText = "▶ 問題の音を聞く";
+            document.getElementById('quiz-feedback').style.opacity = '0';
+        }
+
+        function playQuizNote() {
+            // AudioContextの初期化(ユーザーアクション起因)
+            getAudioContext();
+
+            // 問題を作成
+            const randomIndex = Math.floor(Math.random() * notesData.length);
+            quizTargetNote = notesData[randomIndex];
+            // 現在選択中のオクターブを使用（より難しくするならランダム化も可能だが、まずは現在のオクターブ内で当てる）
+            quizTargetOctave = currentOctave; 
+
+            // 音を鳴らす
+            const freq = getCalculatedFreq(quizTargetNote.freq, quizTargetOctave);
+            playTone(freq, 1.2);
+            
+            // 背景エフェクト
+            triggerImmersiveEffect(quizTargetNote.hue, 1.2);
+
+            quizState = 'guessing';
+            
+            // ボタンを非活性化
+            const btn = document.getElementById('play-quiz-btn');
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.innerText = "音を聞いて色を選んでください...";
+            
+            document.getElementById('quiz-feedback').style.opacity = '0';
+        }
+
+        function showQuizFeedback(isCorrect) {
+            const feedbackEl = document.getElementById('quiz-feedback');
+            if (isCorrect) {
+                feedbackEl.innerText = "⭕️ 正解！";
+                feedbackEl.className = "text-lg font-bold transition-opacity duration-300 text-green-400";
+            } else {
+                feedbackEl.innerText = `❌ 残念 (正解: ${quizTargetNote.name})`;
+                feedbackEl.className = "text-lg font-bold transition-opacity duration-300 text-red-400";
+            }
+            feedbackEl.style.opacity = '1';
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('attempts-display').innerText = attempts;
+        }
+
+    </script>
 </body>
 </html>
