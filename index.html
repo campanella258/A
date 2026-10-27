@@ -4,16 +4,21 @@ html
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>共感覚（色聴）トレーニングアプリ</title>
+    <title>共感覚（色聴）トレーニング</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
         body {
             font-family: 'Inter', sans-serif;
             background-color: #111827; /* Tailwind gray-900 */
-            color: #f3f4f6; /* Tailwind gray-100 */
+            color: #f3f4f6;
+            margin: 0;
+            overflow-x: hidden;
+            transition: background-color 0.8s ease-in;
         }
         
+        /* 円形配置コンテナ */
         .wheel-container {
             position: relative;
             width: 320px;
@@ -22,6 +27,14 @@ html
             border-radius: 50%;
         }
 
+        @media (min-width: 768px) {
+            .wheel-container {
+                width: 440px;
+                height: 440px;
+            }
+        }
+
+        /* ノートボタンの基本スタイル */
         .note-btn {
             position: absolute;
             width: 70px;
@@ -33,11 +46,17 @@ html
             font-weight: bold;
             font-size: 1.25rem;
             cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
             transition: transform 0.1s, filter 0.2s;
             text-shadow: 0px 1px 3px rgba(0,0,0,0.8);
-            color: white;
             user-select: none;
+        }
+
+        @media (min-width: 768px) {
+            .note-btn {
+                width: 90px;
+                height: 90px;
+                font-size: 1.5rem;
+            }
         }
 
         .note-btn:active {
@@ -46,98 +65,83 @@ html
 
         .note-btn.playing {
             transform: scale(1.15);
-            box-shadow: 0 0 20px currentColor;
             z-index: 10;
         }
 
-        /* 画面サイズに応じたレスポンシブな円形配置用 */
-        @media (min-width: 768px) {
-            .wheel-container {
-                width: 440px;
-                height: 440px;
-            }
-            .note-btn {
-                width: 90px;
-                height: 90px;
-                font-size: 1.5rem;
-            }
-        }
-        
-        .glass-panel {
-            background: rgba(31, 41, 55, 0.7); /* gray-800 with opacity */
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(75, 85, 99, 0.5); /* gray-600 */
-            transition: opacity 0.5s ease-in;
+        /* 没入モード時のUI非表示トランジション */
+        .hide-on-immersion {
+            transition: opacity 0.3s ease;
         }
 
-        header {
-            transition: opacity 0.5s ease-in;
-        }
-
-        /* 没入モード発動中にUIを消すためのクラス */
-        body.immersive-playing .glass-panel,
-        body.immersive-playing header {
+        body.immersive-playing .hide-on-immersion {
             opacity: 0 !important;
-            transition: opacity 0s;
             pointer-events: none;
+            transition: opacity 0s;
+        }
+
+        /* UIパネルのグラスモーフィズム */
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.5);
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center py-8 px-4">
 
-    <div class="max-w-3xl w-full flex flex-col gap-6">
+    <div class="max-w-3xl w-full flex flex-col gap-6 relative z-10">
         <!-- ヘッダー -->
-        <header class="text-center">
-            <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-2">
+        <header class="text-center hide-on-immersion">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-500 to-blue-500 mb-2">
                 共感覚トレーニング
             </h1>
             <p class="text-gray-400 text-sm md:text-base">音と色の結びつきを脳に学習させる実験的アプリケーション</p>
         </header>
 
         <!-- コントロールパネル -->
-        <div class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="glass-panel p-5 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 hide-on-immersion shadow-lg">
             
             <!-- モード切替 -->
             <div class="flex bg-gray-900 rounded-lg p-1">
                 <button id="mode-training" class="px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-blue-600 text-white shadow" onclick="setMode('training')">
-                    トレーニングモード
+                    トレーニング
                 </button>
                 <button id="mode-quiz" class="px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white" onclick="setMode('quiz')">
-                    クイズモード
+                    クイズ
                 </button>
             </div>
 
             <!-- オクターブ選択 -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
                 <label class="text-gray-300 font-semibold text-sm">オクターブ:</label>
-                <select id="octave-select" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2" onchange="changeOctave(this.value)">
-                    <option value="3">3 (低音 / 暗い色)</option>
-                    <option value="4" selected>4 (基準 / 標準色)</option>
-                    <option value="5">5 (高音 / 明るい色)</option>
+                <select id="octave-select" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2" onchange="changeOctave(this.value)">
+                    <option value="3">3 (暗)</option>
+                    <option value="4" selected>4 (標準)</option>
+                    <option value="5">5 (明)</option>
                 </select>
             </div>
 
             <!-- 没入モード切替 -->
-            <div class="flex items-center gap-2 mt-2 md:mt-0 border-l border-gray-700 pl-0 md:pl-4">
-                <input type="checkbox" id="immersive-toggle" class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 cursor-pointer" onchange="toggleImmersiveState()">
-                <label for="immersive-toggle" class="text-gray-200 font-bold text-sm cursor-pointer">没入モード</label>
+            <div class="flex items-center gap-2 border-t md:border-t-0 md:border-l border-gray-700 pt-3 md:pt-0 md:pl-4 w-full md:w-auto justify-center">
+                <input type="checkbox" id="immersion-toggle" class="w-5 h-5 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500 cursor-pointer" onchange="updateButtonStyles()">
+                <label for="immersion-toggle" class="text-gray-200 font-bold text-sm cursor-pointer">没入モード</label>
             </div>
         </div>
 
-        <!-- クイズ用ステータスパネル (クイズモード時のみ表示) -->
-        <div id="quiz-panel" class="hidden glass-panel p-4 rounded-xl flex flex-col items-center gap-4">
-            <div class="flex justify-between w-full max-w-sm px-4">
-                <div class="text-lg font-bold">スコア: <span id="score-display" class="text-blue-400">0</span> / <span id="attempts-display">0</span></div>
-                <div id="quiz-feedback" class="text-lg font-bold transition-opacity duration-300 opacity-0">正解！</div>
+        <!-- クイズ用パネル -->
+        <div id="quiz-panel" class="hidden glass-panel p-4 rounded-xl flex-col items-center gap-4 hide-on-immersion shadow-lg">
+            <div class="flex justify-between w-full max-w-sm px-4 items-center">
+                <div class="text-base font-bold text-gray-300">スコア: <span id="score-display" class="text-blue-400 text-xl">0</span> / <span id="attempts-display">0</span></div>
+                <div id="quiz-feedback" class="text-lg font-bold opacity-0 transition-opacity duration-300">正解！</div>
             </div>
-            <button id="play-quiz-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition active:scale-95" onclick="playQuizNote()">
+            <button id="play-quiz-btn" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition active:scale-95 w-64" onclick="playQuizQuestion()">
                 ▶ 問題の音を聞く
             </button>
-            <p class="text-xs text-gray-400 text-center">音が鳴ったら、対応する色のボタンをタップしてください。</p>
+            <p class="text-xs text-gray-400 text-center">音の相対的な距離を忘れるために、集中して当ててください。</p>
         </div>
 
-        <!-- メイン画面（色相環） -->
-        <div class="flex-1 flex items-center justify-center py-10">
+        <!-- 色相環（メインUI） -->
+        <div class="flex-1 flex items-center justify-center py-8">
             <div id="wheel-container" class="wheel-container">
                 <!-- Javascriptでボタンを生成 -->
             </div>
@@ -145,53 +149,43 @@ html
     </div>
 
     <script>
-        // === データ定義 ===
-        // 音名、色相(Hue 0-360)、第4オクターブの周波数(Hz)
+        // === 12音データ (Hue: 0 - 330) ===
         const notesData = [
-            { name: "C",  hue: 0,   freq: 261.63 },
-            { name: "C#", hue: 30,  freq: 277.18 },
-            { name: "D",  hue: 60,  freq: 293.66 },
-            { name: "D#", hue: 90,  freq: 311.13 },
-            { name: "E",  hue: 120, freq: 329.63 },
-            { name: "F",  hue: 150, freq: 349.23 },
-            { name: "F#", hue: 180, freq: 369.99 },
-            { name: "G",  hue: 210, freq: 392.00 },
-            { name: "G#", hue: 240, freq: 415.30 },
-            { name: "A",  hue: 270, freq: 440.00 },
-            { name: "A#", hue: 300, freq: 466.16 },
-            { name: "B",  hue: 330, freq: 493.88 },
+            { name: "C",  hue: 0,   freq: 261.63 }, // Red
+            { name: "C#", hue: 30,  freq: 277.18 }, // Vermilion
+            { name: "D",  hue: 60,  freq: 293.66 }, // Orange
+            { name: "D#", hue: 90,  freq: 311.13 }, // Amber
+            { name: "E",  hue: 120, freq: 329.63 }, // Yellow
+            { name: "F",  hue: 150, freq: 349.23 }, // Chartreuse
+            { name: "F#", hue: 180, freq: 369.99 }, // Green
+            { name: "G",  hue: 210, freq: 392.00 }, // Cyan
+            { name: "G#", hue: 240, freq: 415.30 }, // Blue
+            { name: "A",  hue: 270, freq: 440.00 }, // Indigo
+            { name: "A#", hue: 300, freq: 466.16 }, // Magenta
+            { name: "B",  hue: 330, freq: 493.88 }, // Crimson
         ];
 
-        // === 状態管理 ===
-        let currentMode = 'training'; // 'training' or 'quiz'
-        let currentOctave = 4;        // 3, 4, 5
+        // === アプリケーション状態 ===
+        let currentMode = 'training'; // 'training' | 'quiz'
+        let currentOctave = 4;
         let audioContext = null;
-        let isPlaying = false;
         let activeOsc = null;
         let activeGain = null;
+        let bgTimeout = null;
         
-        // クイズ用状態
+        // クイズ状態
         let quizTargetNote = null;
-        let quizTargetOctave = null;
         let score = 0;
         let attempts = 0;
-        let quizState = 'waiting'; // 'waiting', 'guessing'
-
-        // 没入モード用状態
-        let immersiveTimer = null;
-        const defaultBgColor = '#111827';
+        let isGuessing = false;
 
         // === 初期化 ===
         window.onload = () => {
             renderWheel();
-            updateColors();
+            updateButtonStyles();
         };
 
-        function toggleImmersiveState() {
-            updateColors();
-        }
-
-        // === 音声再生 (Web Audio API) ===
+        // === オーディオ処理 (Web Audio API) ===
         function getAudioContext() {
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -202,294 +196,272 @@ html
             return audioContext;
         }
 
-        function playTone(frequency, duration = 1.0) {
+        function playTone(freq, duration = 1.0) {
             const ctx = getAudioContext();
             const now = ctx.currentTime;
             
-            // 前の音が鳴っていれば、短いフェードアウトをかけて停止（ノイズ・濁り防止）
+            // 既存の音をフェードアウトして即座にキャンセル（濁り・ノイズ防止）
             if (activeGain && activeOsc) {
                 activeGain.gain.cancelScheduledValues(now);
                 activeGain.gain.setValueAtTime(activeGain.gain.value, now);
-                activeGain.gain.linearRampToValueAtTime(0, now + 0.05);
-                
+                activeGain.gain.linearRampToValueAtTime(0, now + 0.05); // 0.05秒で素早く減衰
                 try {
-                    activeOsc.stop(now + 0.05);
-                } catch (e) {
-                    // すでに停止している場合のエラーを無視
-                }
+                    activeOsc.stop(now + 0.06);
+                } catch (e) {}
             }
             
-            // オシレーター（サイン波生成）
             const osc = ctx.createOscillator();
-            osc.type = 'sine';
-            osc.frequency.value = frequency;
+            osc.type = 'sine'; // 倍音を含まない純音
+            osc.frequency.value = freq;
 
-            // ゲイン（音量調整・クリック音防止のためのフェード処理）
             const gainNode = ctx.createGain();
             osc.connect(gainNode);
             gainNode.connect(ctx.destination);
             
-            // エンベロープ（音の立ち上がりと減衰）
+            // クリックノイズ防止のためのADSRエンベロープ
             gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(0.8, now + 0.05); // Attack
+            gainNode.gain.linearRampToValueAtTime(0.8, now + 0.05); // Attack (フェードイン)
             
-            const releaseStartTime = Math.max(now + 0.05, now + duration - 0.1);
-            gainNode.gain.setValueAtTime(0.8, releaseStartTime); // Sustain
-            gainNode.gain.linearRampToValueAtTime(0, now + duration); // Release
+            const releaseStart = Math.max(now + 0.05, now + duration - 0.1);
+            gainNode.gain.setValueAtTime(0.8, releaseStart); // Sustain
+            gainNode.gain.linearRampToValueAtTime(0, now + duration); // Release (フェードアウト)
 
             osc.start(now);
             osc.stop(now + duration);
             
-            // 現在の音として保持
             activeOsc = osc;
             activeGain = gainNode;
         }
 
-        // === UIレンダリング ===
-        function renderWheel() {
-            const container = document.getElementById('wheel-container');
-            container.innerHTML = '';
-
-            const radius = 50; // 中心からの距離 (%)
-            const angleOffset = -90; // 0度が上（12時方向）になるように調整
-
-            notesData.forEach((note, index) => {
-                const button = document.createElement('button');
-                button.className = 'note-btn';
-                button.id = `btn-${note.name.replace('#', 'sharp')}`;
-                button.innerText = note.name;
-                
-                // 円周上の位置計算 (角度からX,Y座標を求める)
-                const angleDeg = (index * 30) + angleOffset;
-                const angleRad = angleDeg * (Math.PI / 180);
-                
-                // transformを使って配置（中央基準）
-                const x = 50 + (radius * Math.cos(angleRad));
-                const y = 50 + (radius * Math.sin(angleRad));
-                
-                button.style.left = `calc(${x}% - 35px)`; // 幅の半分を引いて中央揃え
-                button.style.top = `calc(${y}% - 35px)`;  // PC表示時の調整はCSSのメディアクエリと競合するため、ここではパーセンテージで大枠決定
-
-                // PCサイズ時（CSSメディアクエリのサイズ変更に対応）
-                const mediaQuery = window.matchMedia('(min-width: 768px)');
-                if (mediaQuery.matches) {
-                    button.style.left = `calc(${x}% - 45px)`;
-                    button.style.top = `calc(${y}% - 45px)`;
-                }
-
-                // イベントリスナー追加（マウスとタッチ両対応）
-                button.addEventListener('pointerdown', (e) => {
-                    e.preventDefault();
-                    handleNoteClick(note, button);
-                });
-
-                container.appendChild(button);
-            });
-        }
-
-        // オクターブに応じた色の明度を計算
-        function getLightness(octave) {
-            if (octave === 3) return 30; // 暗い
-            if (octave === 4) return 50; // 標準
-            if (octave === 5) return 70; // 明るい
-            return 50;
-        }
-
-        // 全ボタンの色を更新
-        function updateColors() {
-            const isImmersive = document.getElementById('immersive-toggle').checked;
-            const lightness = getLightness(currentOctave);
-            
-            notesData.forEach(note => {
-                const button = document.getElementById(`btn-${note.name.replace('#', 'sharp')}`);
-                if (button) {
-                    if (isImmersive) {
-                        // 没入モード中はUIとしての色は消し、黒抜きにする
-                        button.style.backgroundColor = '#000000';
-                        button.style.color = '#ffffff';
-                        button.style.border = '2px solid #ffffff';
-                        button.style.boxShadow = 'none';
-                    } else {
-                        // 通常時は色を付ける
-                        const color = `hsl(${note.hue}, 100%, ${lightness}%)`;
-                        button.style.backgroundColor = color;
-                        button.style.color = 'white';
-                        button.style.border = 'none';
-                        button.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3)';
-                    }
-                }
-            });
-        }
-
-        // オクターブ変更ハンドラ
-        function changeOctave(val) {
-            currentOctave = parseInt(val);
-            updateColors();
-            
-            // クイズ待機中ならボタンの色を変えた後、すぐに問題を再生し直せるようにする
-            if (currentMode === 'quiz' && quizState === 'waiting' && quizTargetNote == null) {
-                // 特に何もしない
-            }
-        }
-
-        // 背景色を音の色に変化させる処理
-        function triggerImmersiveEffect(hue, duration) {
-            const isImmersive = document.getElementById('immersive-toggle').checked;
-            if (!isImmersive) return;
-
-            // 彩度100%、明度50%の純色で画面全体を染める
-            const bgColor = `hsl(${hue}, 100%, 50%)`; 
-            document.body.style.backgroundColor = bgColor;
-            document.body.style.transition = 'background-color 0s'; // 瞬時に染める
-            document.body.classList.add('immersive-playing'); // UIを隠す
-
-            if (immersiveTimer) clearTimeout(immersiveTimer);
-            
-            immersiveTimer = setTimeout(() => {
-                document.body.style.backgroundColor = defaultBgColor;
-                document.body.style.transition = 'background-color 0.8s ease-in';
-                document.body.classList.remove('immersive-playing'); // UIを戻す
-            }, duration * 1000);
-        }
-
-        // === アプリケーションロジック ===
-
-        // 音の周波数をオクターブに基づいて計算
         function getCalculatedFreq(baseFreq, octave) {
             if (octave === 3) return baseFreq / 2;
-            if (octave === 4) return baseFreq;
             if (octave === 5) return baseFreq * 2;
             return baseFreq;
         }
 
-        // モード切替
-        function setMode(mode) {
-            currentMode = mode;
-            const btnTraining = document.getElementById('mode-training');
-            const btnQuiz = document.getElementById('mode-quiz');
-            const quizPanel = document.getElementById('quiz-panel');
+        // === UI レンダリング ===
+        function renderWheel() {
+            const container = document.getElementById('wheel-container');
+            container.innerHTML = '';
 
-            if (mode === 'training') {
-                btnTraining.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-blue-600 text-white shadow";
-                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
-                quizPanel.classList.add('hidden');
-                resetQuiz();
-            } else {
-                btnTraining.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
-                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-purple-600 text-white shadow";
-                quizPanel.classList.remove('hidden');
-                resetQuiz();
-            }
-        }
+            const radius = 50; 
+            const angleOffset = -90; // 12時方向が0度(C)
 
-        // 音符ボタンクリック時の処理
-        function handleNoteClick(note, buttonElement) {
-            // トレーニングモード
-            if (currentMode === 'training') {
-                const freq = getCalculatedFreq(note.freq, currentOctave);
-                playTone(freq, 1.0);
-                visualizePlay(buttonElement);
+            notesData.forEach((note, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'note-btn';
+                btn.id = `btn-${note.name.replace('#', 'sharp')}`;
+                btn.innerText = note.name;
                 
-                triggerImmersiveEffect(note.hue, 1.0);
-            } 
-            // クイズモード
-            else if (currentMode === 'quiz') {
-                if (quizState !== 'guessing') return; // 問題を再生していない場合は無視
-
-                quizState = 'waiting'; // 連続回答を防ぐ
-                const isCorrect = (note.name === quizTargetNote.name);
+                const angleRad = ((index * 30) + angleOffset) * (Math.PI / 180);
+                const x = 50 + (radius * Math.cos(angleRad));
+                const y = 50 + (radius * Math.sin(angleRad));
                 
-                // 回答の音を鳴らす
-                const freq = getCalculatedFreq(note.freq, currentOctave);
-                playTone(freq, 0.8);
-                visualizePlay(buttonElement);
+                // 中央揃えの補正
+                btn.style.left = `calc(${x}% - 35px)`;
+                btn.style.top = `calc(${y}% - 35px)`;
 
-                triggerImmersiveEffect(note.hue, 0.8);
-
-                attempts++;
-                showQuizFeedback(isCorrect);
-                
-                if (isCorrect) {
-                    score++;
+                const mq = window.matchMedia('(min-width: 768px)');
+                if (mq.matches) {
+                    btn.style.left = `calc(${x}% - 45px)`;
+                    btn.style.top = `calc(${y}% - 45px)`;
                 }
 
-                updateScoreDisplay();
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); // タッチデバイスのダブルタップズーム防止
+                    handleNoteClick(note, btn);
+                });
 
-                // 次の問題のためにリセット
-                quizTargetNote = null;
-                document.getElementById('play-quiz-btn').disabled = false;
-                document.getElementById('play-quiz-btn').classList.remove('opacity-50', 'cursor-not-allowed');
-                document.getElementById('play-quiz-btn').innerText = "▶ 次の問題を聞く";
+                container.appendChild(btn);
+            });
+        }
+
+        // オクターブによる明度の変化
+        function getLightness(octave) {
+            if (octave == 3) return 30; // 暗い
+            if (octave == 4) return 50; // 標準
+            if (octave == 5) return 70; // 明るい
+            return 50;
+        }
+
+        // モード状態に基づくボタンスタイルの更新
+        function updateButtonStyles() {
+            const isImmersion = document.getElementById('immersion-toggle').checked;
+            const lightness = getLightness(currentOctave);
+            
+            notesData.forEach(note => {
+                const btn = document.getElementById(`btn-${note.name.replace('#', 'sharp')}`);
+                if (!btn) return;
+
+                if (currentMode === 'quiz') {
+                    // クイズモード：強制的にモノトーン（色を隠す）
+                    btn.style.backgroundColor = '#374151'; // gray-700
+                    btn.style.color = '#D1D5DB'; // gray-300
+                    btn.style.border = '2px solid #4B5563'; // gray-600
+                    btn.style.boxShadow = 'none';
+                    btn.style.textShadow = 'none';
+                } else if (isImmersion) {
+                    // トレーニング ＋ 没入モードON：黒背景に白文字・白枠
+                    btn.style.backgroundColor = '#000000';
+                    btn.style.color = '#FFFFFF';
+                    btn.style.border = '2px solid #FFFFFF';
+                    btn.style.boxShadow = 'none';
+                } else {
+                    // トレーニング（通常）：音に応じた色相と明度
+                    btn.style.backgroundColor = `hsl(${note.hue}, 100%, ${lightness}%)`;
+                    btn.style.color = '#FFFFFF';
+                    btn.style.border = 'none';
+                    btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3)';
+                }
+            });
+        }
+
+        // === イベントハンドラ ===
+        function setMode(mode) {
+            currentMode = mode;
+            const btnTrain = document.getElementById('mode-training');
+            const btnQuiz = document.getElementById('mode-quiz');
+            const quizPanel = document.getElementById('quiz-panel');
+            const immersionToggle = document.getElementById('immersion-toggle');
+
+            if (mode === 'training') {
+                btnTrain.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-blue-600 text-white shadow";
+                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
+                quizPanel.classList.remove('flex');
+                quizPanel.classList.add('hidden');
+                immersionToggle.disabled = false;
+                
+                // 没入モードリセット
+                document.body.className = "min-h-screen flex flex-col items-center py-8 px-4";
+                document.body.style.backgroundColor = '#111827';
+            } else {
+                btnTrain.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors text-gray-400 hover:text-white";
+                btnQuiz.className = "px-4 py-2 rounded-md font-semibold text-sm transition-colors bg-purple-600 text-white shadow";
+                quizPanel.classList.remove('hidden');
+                quizPanel.classList.add('flex');
+                immersionToggle.disabled = true; // クイズ中は没入トグルを無効化
+                resetQuiz();
+            }
+            updateButtonStyles();
+        }
+
+        function changeOctave(val) {
+            currentOctave = parseInt(val);
+            updateButtonStyles();
+        }
+
+        function handleNoteClick(note, btn) {
+            const freq = getCalculatedFreq(note.freq, currentOctave);
+
+            if (currentMode === 'training') {
+                playTone(freq, 1.2);
+                triggerVisualEffect(note.hue, 1.2, true);
+                
+                btn.classList.add('playing');
+                setTimeout(() => btn.classList.remove('playing'), 200);
+            } 
+            else if (currentMode === 'quiz' && isGuessing) {
+                // クイズの解答時
+                isGuessing = false;
+                const isCorrect = (note.name === quizTargetNote.name);
+                
+                playTone(freq, 0.8);
+                
+                // 正解のフィードバックとして一瞬色を見せる
+                triggerVisualEffect(quizTargetNote.hue, 0.8, false);
+                
+                btn.classList.add('playing');
+                setTimeout(() => btn.classList.remove('playing'), 200);
+
+                attempts++;
+                if (isCorrect) score++;
+                
+                updateQuizUI(isCorrect);
             }
         }
 
-        // ボタンの光るアニメーション
-        function visualizePlay(button) {
-            button.classList.add('playing');
-            setTimeout(() => {
-                button.classList.remove('playing');
-            }, 300);
+        // 背景色を染める視覚エフェクト
+        function triggerVisualEffect(hue, duration, isTraining) {
+            const isImmersion = document.getElementById('immersion-toggle').checked;
+            
+            // トレーニングモードで没入ON、またはクイズモードのフィードバック時のみ実行
+            if ((isTraining && isImmersion) || !isTraining) {
+                // 最も鮮やかな色 (彩度100%, 明度50%)
+                const pureColor = `hsl(${hue}, 100%, 50%)`;
+                
+                // 即座に色を反映
+                document.body.style.transition = 'background-color 0s';
+                document.body.style.backgroundColor = pureColor;
+                
+                if (isTraining) {
+                    document.body.classList.add('immersive-playing');
+                }
+
+                if (bgTimeout) clearTimeout(bgTimeout);
+                
+                // 指定時間後に元に戻す
+                bgTimeout = setTimeout(() => {
+                    document.body.style.transition = 'background-color 0.8s ease-in';
+                    document.body.style.backgroundColor = '#111827';
+                    document.body.classList.remove('immersive-playing');
+                }, duration * 1000);
+            }
         }
 
         // === クイズロジック ===
-
         function resetQuiz() {
             score = 0;
             attempts = 0;
-            quizState = 'waiting';
+            isGuessing = false;
             quizTargetNote = null;
-            updateScoreDisplay();
-            document.getElementById('play-quiz-btn').disabled = false;
-            document.getElementById('play-quiz-btn').classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('play-quiz-btn').innerText = "▶ 問題の音を聞く";
-            document.getElementById('quiz-feedback').style.opacity = '0';
-        }
-
-        function playQuizNote() {
-            // AudioContextの初期化(ユーザーアクション起因)
-            getAudioContext();
-
-            // 問題を作成
-            const randomIndex = Math.floor(Math.random() * notesData.length);
-            quizTargetNote = notesData[randomIndex];
-            // 現在選択中のオクターブを使用（より難しくするならランダム化も可能だが、まずは現在のオクターブ内で当てる）
-            quizTargetOctave = currentOctave; 
-
-            // 音を鳴らす
-            const freq = getCalculatedFreq(quizTargetNote.freq, quizTargetOctave);
-            playTone(freq, 1.2);
-            
-            // 背景エフェクト
-            triggerImmersiveEffect(quizTargetNote.hue, 1.2);
-
-            quizState = 'guessing';
-            
-            // ボタンを非活性化
-            const btn = document.getElementById('play-quiz-btn');
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            btn.innerText = "音を聞いて色を選んでください...";
-            
-            document.getElementById('quiz-feedback').style.opacity = '0';
-        }
-
-        function showQuizFeedback(isCorrect) {
-            const feedbackEl = document.getElementById('quiz-feedback');
-            if (isCorrect) {
-                feedbackEl.innerText = "⭕️ 正解！";
-                feedbackEl.className = "text-lg font-bold transition-opacity duration-300 text-green-400";
-            } else {
-                feedbackEl.innerText = `❌ 残念 (正解: ${quizTargetNote.name})`;
-                feedbackEl.className = "text-lg font-bold transition-opacity duration-300 text-red-400";
-            }
-            feedbackEl.style.opacity = '1';
-        }
-
-        function updateScoreDisplay() {
             document.getElementById('score-display').innerText = score;
             document.getElementById('attempts-display').innerText = attempts;
+            document.getElementById('quiz-feedback').style.opacity = '0';
+            
+            const btn = document.getElementById('play-quiz-btn');
+            btn.disabled = false;
+            btn.innerText = "▶ 問題の音を聞く";
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
 
+        function playQuizQuestion() {
+            getAudioContext();
+            
+            // ランダムに問題を選ぶ
+            const randIdx = Math.floor(Math.random() * notesData.length);
+            quizTargetNote = notesData[randIdx];
+            
+            const freq = getCalculatedFreq(quizTargetNote.freq, currentOctave);
+            playTone(freq, 1.0);
+            
+            isGuessing = true;
+            document.getElementById('quiz-feedback').style.opacity = '0';
+            
+            const btn = document.getElementById('play-quiz-btn');
+            btn.disabled = true;
+            btn.innerText = "色（音）を選んでください...";
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+
+        function updateQuizUI(isCorrect) {
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('attempts-display').innerText = attempts;
+            
+            const fb = document.getElementById('quiz-feedback');
+            if (isCorrect) {
+                fb.innerText = "⭕️ 正解！";
+                fb.className = "text-lg font-bold transition-opacity duration-300 text-green-400";
+            } else {
+                fb.innerText = `❌ ${quizTargetNote.name} (色相${quizTargetNote.hue}°)`;
+                fb.className = "text-lg font-bold transition-opacity duration-300 text-red-400";
+            }
+            fb.style.opacity = '1';
+            
+            const btn = document.getElementById('play-quiz-btn');
+            btn.disabled = false;
+            btn.innerText = "▶ 次の問題を聞く";
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
     </script>
 </body>
 </html>
