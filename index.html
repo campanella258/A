@@ -116,19 +116,19 @@
         <div class="controls">
             <h2>色聴トレーニング</h2>
             
-            <!-- 追加：音数を選択するセレクトボックス -->
+            <!-- 修正：追加される音が分かるようにテキストを変更 -->
             <select id="noteCountSelect">
-                <option value="2">レベル1: 2音（C, F# / 最も離れた音）</option>
-                <option value="3">レベル2: 3音（C, E, G# / 均等3分割）</option>
-                <option value="4">レベル3: 4音（C, D#, F#, A / 均等4分割）</option>
-                <option value="5">レベル4: 5音（ペンタトニックスケール）</option>
-                <option value="6">レベル5: 6音（ホールトーン / 均等6分割）</option>
-                <option value="7">レベル6: 7音（Cメジャースケール）</option>
-                <option value="8">レベル7: 8音</option>
-                <option value="9">レベル8: 9音</option>
-                <option value="10">レベル9: 10音</option>
-                <option value="11">レベル10: 11音</option>
-                <option value="12" selected>レベルMAX: 12音（すべての音）</option>
+                <option value="2">レベル1: 2音（C, F# / 色相環の真裏）</option>
+                <option value="3">レベル2: 3音（+ D# 追加）</option>
+                <option value="4">レベル3: 4音（+ A 追加 / 十字完成）</option>
+                <option value="5">レベル4: 5音（+ E 追加）</option>
+                <option value="6">レベル5: 6音（+ A# 追加 / Eの真裏）</option>
+                <option value="7">レベル6: 7音（+ C# 追加）</option>
+                <option value="8">レベル7: 8音（+ G 追加 / C#の真裏）</option>
+                <option value="9">レベル8: 9音（+ D 追加）</option>
+                <option value="10">レベル9: 10音（+ G# 追加 / Dの真裏）</option>
+                <option value="11">レベル10: 11音（+ F 追加）</option>
+                <option value="12" selected>レベルMAX: 12音（+ B 追加 / 全12音完了）</option>
             </select>
 
             <select id="modeSelect">
@@ -153,19 +153,19 @@
         // C=0度(赤), C#=30度... 30度ずつ回転
         const hues = notes.map((_, i) => i * 30);
         
-        // 追加：各レベル（音数）で表示する音のインデックスを固定
+        // 修正：前に覚えた音を維持したまま、常に最も遠い隙間（またはその増4度の対極）を1音ずつ足していく一貫したロジック
         const levelPatterns = {
-            2: [0, 6],                      // 増4度（最も遠い）
-            3: [0, 4, 8],                   // 長3度（均等3分割）
-            4: [0, 3, 6, 9],                // 短3度（均等4分割）
-            5: [0, 2, 4, 7, 9],             // ペンタトニック
-            6: [0, 2, 4, 6, 8, 10],         // ホールトーン（均等6分割）
-            7: [0, 2, 4, 5, 7, 9, 11],      // ダイアトニック
-            8: [0, 1, 3, 4, 6, 7, 9, 10],   // コンディミ等
-            9: [0, 2, 4, 5, 6, 7, 9, 10, 11], 
-            10: [0, 1, 2, 4, 5, 6, 7, 8, 9, 10], 
-            11: [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11], 
-            12: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+            2: [0, 6],                      // C, F# (増4度・真裏)
+            3: [0, 6, 3],                   // + D# (十字の半分)
+            4: [0, 6, 3, 9],                // + A (十字が完成)
+            5: [0, 6, 3, 9, 4],             // + E
+            6: [0, 6, 3, 9, 4, 10],         // + A# (Eの真裏)
+            7: [0, 6, 3, 9, 4, 10, 1],      // + C# 
+            8: [0, 6, 3, 9, 4, 10, 1, 7],   // + G (C#の真裏)
+            9: [0, 6, 3, 9, 4, 10, 1, 7, 2],    // + D
+            10: [0, 6, 3, 9, 4, 10, 1, 7, 2, 8],// + G# (Dの真裏)
+            11: [0, 6, 3, 9, 4, 10, 1, 7, 2, 8, 5],     // + F
+            12: [0, 6, 3, 9, 4, 10, 1, 7, 2, 8, 5, 11]  // + B (Fの真裏・全12音完了)
         };
 
         let activeNotes = levelPatterns[12]; // 現在有効な音のインデックス配列
@@ -216,7 +216,7 @@
             updateActiveNotes(); // 選択中の音数に合わせて表示を更新
         }
 
-        // 追加：音の数を変更したときの表示切り替え処理
+        // 音の数を変更したときの表示切り替え処理
         function updateActiveNotes() {
             const count = parseInt(noteCountSelect.value);
             activeNotes = levelPatterns[count];
@@ -346,7 +346,7 @@
             statusText.style.color = "#fff";
             setBgColor(-1);
             
-            // 修正：12音からではなく、現在画面に表示されている音（activeNotes）の中からランダムに出題
+            // 現在画面に表示されている音（activeNotes）の中からランダムに出題
             const randomIndex = Math.floor(Math.random() * activeNotes.length);
             targetIndex = activeNotes[randomIndex];
 
